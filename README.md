@@ -2,10 +2,10 @@
 TrialLine: A same-session, zero-window official NIH clinical trial status stamp on GenLayer Studio Devnet.
 
 ## Deployment Details
-- **Contract Address:** `0x3936Fe91497BA82836f38e53471cC53d077d0D2a`
+- **Contract Address:** [`0x3936Fe91497BA82836f38e53471cC53d077d0D2a`](https://explorer-studio-dev.genlayer.com/address/0x3936Fe91497BA82836f38e53471cC53d077d0D2a)
 - **Network:** Studio Devnet (Chain ID 61997)
-- **RPC:** `https://studio-dev.genlayer.com/api`
-- **Explorer:** `https://explorer-studio-dev.genlayer.com/`
+- **RPC:** [https://studio-dev.genlayer.com/api](https://studio-dev.genlayer.com/api)
+- **Explorer:** [https://explorer-studio-dev.genlayer.com/](https://explorer-studio-dev.genlayer.com/)
 
 ## Architectural Defenses (The "Graveyard" Checklist)
 TrialLine is built strictly adhering to GenVM v0.6 RC guidelines. It avoids past protocol rejections through the following architectural defenses:
