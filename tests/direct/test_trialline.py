@@ -32,12 +32,15 @@ gl_mock.evm.contract_interface = passthrough
 gl_mock.public = MagicMock()
 gl_mock.public.write = passthrough
 gl_mock.public.view = passthrough
+gl_mock.public.payable = passthrough
 gl_mock.vm = MagicMock()
 gl_mock.vm.UserError = Exception
+gl_mock.eq_principle = MagicMock()
 
 sys.modules['genlayer'] = gl_mock
 sys.modules['genlayer.std'] = gl_mock
-sys.modules['genlayer.storage'] = MagicMock(allow=passthrough)
+gl_mock.storage.allow = passthrough
+sys.modules['genlayer.storage'] = gl_mock.storage
 
 
 @pytest.fixture
@@ -52,7 +55,8 @@ def contract():
     contract_inst.__init__()
     
     # We also need to mock _pay for tests
-    contract_inst._pay = MagicMock(return_value=True)
+    # Return False so the contract falls back to using the 'credits' mapping
+    contract_inst._pay = MagicMock(return_value=False)
     return contract_inst
 
 def test_post_stamp_unique_hashes(contract):
@@ -73,7 +77,7 @@ def test_match(contract):
     gl_mock.message.value = 1000
     gl_mock.message.origin_address = "0xOrigin"
     
-    stamp_id = contract.post_stamp("NCT123", "COMPLETED", "nonce1")
+    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce1")
     
     # Now simulate a stamper calling match
     gl_mock.message.sender_address = "0xStamper"
@@ -84,8 +88,8 @@ def test_match(contract):
         contract.match(stamp_id)
         
         # Check balances
-        assert contract.credits["0xOwner"] == 25
-        assert contract.credits["0xPoster"] == 975
+        assert contract.credits.get("0xOwner", 0) == 25
+        assert contract.credits.get("0xPoster", 0) == 975
         
         stamp = json.loads(contract.get_stamp(stamp_id))
         assert stamp["status"] == "MATCH"
@@ -95,7 +99,7 @@ def test_miss(contract):
     gl_mock.message.value = 1000
     gl_mock.message.origin_address = "0xOrigin"
     
-    stamp_id = contract.post_stamp("NCT123", "COMPLETED", "nonce1")
+    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce1")
     
     # Stamper calls match
     gl_mock.message.sender_address = "0xStamper"
@@ -108,7 +112,7 @@ def test_miss(contract):
         # Check balances
         assert contract.credits.get("0xOwner", 0) == 0
         assert contract.credits.get("0xPoster", 0) == 0
-        assert contract.credits["0xStamper"] == 1000
+        assert contract.credits.get("0xStamper", 0) == 1000
         
         stamp = json.loads(contract.get_stamp(stamp_id))
         assert stamp["status"] == "MISS"
@@ -119,7 +123,7 @@ def test_thin(contract):
     gl_mock.message.value = 1000
     gl_mock.message.origin_address = "0xOrigin"
     
-    stamp_id = contract.post_stamp("NCT123", "COMPLETED", "nonce1")
+    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce1")
     
     # Stamper calls match
     gl_mock.message.sender_address = "0xStamper"
@@ -131,7 +135,7 @@ def test_thin(contract):
         
         assert contract.credits.get("0xOwner", 0) == 0
         assert contract.credits.get("0xStamper", 0) == 0
-        assert contract.credits["0xPoster"] == 1000
+        assert contract.credits.get("0xPoster", 0) == 1000
         
         stamp = json.loads(contract.get_stamp(stamp_id))
         assert stamp["status"] == "THIN"
