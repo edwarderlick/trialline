@@ -2,7 +2,7 @@
 TrialLine: A same-session, zero-window official NIH clinical trial status stamp on GenLayer Studio Devnet.
 
 ## Deployment Details
-- **Contract Address:** [`0xb0bA27101375E27893e04b015e5a9096D023f4A6`](https://explorer-studio-dev.genlayer.com/address/0xb0bA27101375E27893e04b015e5a9096D023f4A6)
+- **Contract Address:** [`0x1576b4AC2b257b4632B18c63424498526f12EA18`](https://explorer-studio-dev.genlayer.com/address/0x1576b4AC2b257b4632B18c63424498526f12EA18)
 - **Network:** Studio Devnet (Chain ID 61997)
 - **RPC:** [https://studio-dev.genlayer.com/api](https://studio-dev.genlayer.com/api)
 - **Explorer:** [https://explorer-studio-dev.genlayer.com/](https://explorer-studio-dev.genlayer.com/)

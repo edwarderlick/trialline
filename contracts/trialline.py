@@ -50,10 +50,10 @@ class TrialLine(contract.Contract):
     def _pay(self, account: str, amount: u256):
         if amount <= u256(0):
             return
+        addr = Address(account)
         try:
-            _Recipient(account).emit_transfer(value=amount)
+            _Recipient(addr).emit_transfer(value=amount)
         except Exception:
-            addr = Address(account)
             current_credit = self.credits.get(addr, u256(0))
             self.credits[addr] = current_credit + amount
 
