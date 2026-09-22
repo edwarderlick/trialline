@@ -9,6 +9,9 @@ gl_mock = MagicMock()
 gl_mock.u256 = int
 gl_mock.Address = str
 gl_mock.message = MagicMock()
+gl_mock.message.block_number = 100  # default block — well past LOCK_BLOCKS (10)
+gl_mock.message.sender_address = "0xOwner"
+gl_mock.message.value = 0
 
 class HashMapMock(dict):
     def __init__(self, *args, **kwargs):
@@ -55,9 +58,17 @@ sys.modules['genlayer.storage'] = gl_mock.storage
 
 @pytest.fixture
 def contract():
-    from contracts.trialline import TrialLine
-    
+    # Reset shared message mock to clean defaults for every test
     gl_mock.message.sender_address = "0xOwner"
+    gl_mock.message.value = 0
+    gl_mock.message.block_number = 100
+
+    # Must reimport fresh each test because module caches gl_mock state
+    import importlib
+    import contracts.trialline as tl_mod
+    importlib.reload(tl_mod)
+    TrialLine = tl_mod.TrialLine
+
     contract_inst = TrialLine.__new__(TrialLine)
     contract_inst.config = HashMapMock()
     contract_inst.stamps = HashMapMock()
@@ -154,11 +165,14 @@ def test_post_stamp_invalid_nct(contract):
         contract.post_stamp("INVALID123", "COMPLETED", "nonce1")
 
 def test_cancel_stamp_success(contract):
+    # Post at block 100, then cancel at block 115 (past lock window of 10, before expire of 200)
+    gl_mock.message.block_number = 100
     gl_mock.message.sender_address = "0xPoster"
     gl_mock.message.value = 1000
     
     stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce1")
     
+    gl_mock.message.block_number = 115  # elapsed = 15 > LOCK_BLOCKS(10), < EXPIRE_BLOCKS(200)
     contract.cancel(stamp_id)
     
     # Check balance
@@ -215,3 +229,80 @@ def test_withdraw_no_funds(contract):
     
     with pytest.raises(Exception, match="No credits"):
         contract.withdraw()
+
+# ── Timing & access-control boundary tests ──────────────────────────────────
+
+def test_cancel_during_lockup_fails(contract):
+    """Poster cannot cancel within the first 10 blocks after posting."""
+    gl_mock.message.block_number = 100
+    gl_mock.message.sender_address = "0xPoster"
+    gl_mock.message.value = 1000
+    
+    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce1")
+    
+    # Try to cancel at block 105 — elapsed = 5 < LOCK_BLOCKS(10)
+    gl_mock.message.block_number = 105
+    with pytest.raises(Exception, match="Stamp is locked for 10 blocks after posting"):
+        contract.cancel(stamp_id)
+
+def test_cancel_after_lockup_succeeds(contract):
+    """Poster CAN cancel after the 10-block lock window passes."""
+    gl_mock.message.block_number = 100
+    gl_mock.message.sender_address = "0xPoster"
+    gl_mock.message.value = 2000
+    
+    stamp_id = contract.post_stamp("NCT00000999", "RECRUITING", "nonce_lock")
+    
+    # Cancel at block 111 — elapsed = 11 > LOCK_BLOCKS(10)
+    gl_mock.message.block_number = 111
+    contract.cancel(stamp_id)
+    
+    assert contract.credits.get("0xPoster", 0) == 2000
+    stamp = json.loads(contract.get_stamp(stamp_id))
+    assert stamp["status"] == "CANCELED"
+
+def test_self_resolution_blocked(contract):
+    """Poster cannot call match() on their own stamp."""
+    gl_mock.message.block_number = 100
+    gl_mock.message.sender_address = "0xPoster"
+    gl_mock.message.value = 1000
+    
+    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce_self")
+    
+    # Poster tries to match their own stamp
+    with patch.object(gl_mock.eq_principle, 'strict_eq') as strict_eq_mock:
+        strict_eq_mock.return_value = json.dumps({"kind": "OK", "status": "COMPLETED"})
+        with pytest.raises(Exception, match="Poster cannot self-resolve"):
+            contract.match(stamp_id)
+
+def test_expire_after_window(contract):
+    """Anyone can expire a stamp after EXPIRE_BLOCKS (200) with no challenger."""
+    gl_mock.message.block_number = 100
+    gl_mock.message.sender_address = "0xPoster"
+    gl_mock.message.value = 3000
+    
+    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce_expire")
+    
+    # Move to block 305 — elapsed = 205 > EXPIRE_BLOCKS(200)
+    gl_mock.message.block_number = 305
+    gl_mock.message.sender_address = "0xAnyone"
+    contract.expire(stamp_id)
+    
+    # Full bond returned to poster
+    assert contract.credits.get("0xPoster", 0) == 3000
+    stamp = json.loads(contract.get_stamp(stamp_id))
+    assert stamp["status"] == "EXPIRED"
+
+def test_expire_before_window_fails(contract):
+    """expire() must fail if stamp has not yet passed EXPIRE_BLOCKS."""
+    gl_mock.message.block_number = 100
+    gl_mock.message.sender_address = "0xPoster"
+    gl_mock.message.value = 1000
+    
+    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce_early")
+    
+    # Block 150 — elapsed = 50 < EXPIRE_BLOCKS(200)
+    gl_mock.message.block_number = 150
+    gl_mock.message.sender_address = "0xAnyone"
+    with pytest.raises(Exception, match="Stamp has not expired yet"):
+        contract.expire(stamp_id)

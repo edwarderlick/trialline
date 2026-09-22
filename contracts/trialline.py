@@ -11,6 +11,15 @@ class _Recipient:
     class View: pass
     class Write: pass
 
+# ── Resolution window constants ─────────────────────────────────────────────
+# Posters cannot cancel within the first LOCK_BLOCKS after posting.
+# This prevents escaping a challenged stamp before anyone can respond.
+LOCK_BLOCKS   = u256(10)
+
+# After EXPIRE_BLOCKS with no challenger, anyone may call expire() for a
+# guaranteed 100% refund to the poster (resolves as EXPIRED / THIN-class).
+EXPIRE_BLOCKS = u256(200)
+
 @storage.allow
 @dataclass
 class StampRecord:
@@ -24,6 +33,7 @@ class StampRecord:
     result_brief_title: str
     result_reason: str
     stamper: str
+    posted_at_block: u256   # block when post_stamp() was called
 
 def fetch_nih(nct: str) -> str:
     url = f"https://clinicaltrials.gov/api/v2/studies/{nct}"
@@ -47,6 +57,7 @@ class TrialLine(contract.Contract):
 
     def __init__(self):
         self.config["owner"] = str(message.sender_address)
+
     def _pay(self, account: str, amount: u256):
         if amount <= u256(0):
             return
@@ -63,7 +74,7 @@ class TrialLine(contract.Contract):
         amount = self.credits.get(caller, u256(0))
         if amount == u256(0):
             raise gl.vm.UserError("No credits")
-        
+
         # Zero the balance before transfer (CEI pattern)
         self.credits[caller] = u256(0)
 
@@ -85,7 +96,7 @@ class TrialLine(contract.Contract):
         norm_nct = nct.strip().upper().replace(" ", "")
         if not re.match(r"^NCT\d{8}$", norm_nct):
             raise gl.vm.UserError("Invalid NCT ID format")
-        
+
         h_ctx = hashlib.sha256(
             str(caller).encode("utf-8") +
             str(value).encode("utf-8") +
@@ -93,12 +104,12 @@ class TrialLine(contract.Contract):
             str(norm_nct).encode("utf-8") +
             str(status).encode("utf-8")
         ).hexdigest()
-        
+
         stamp_id = h_ctx
-        
+
         if stamp_id in self.stamps:
             raise gl.vm.UserError("Stamp already exists")
-            
+
         stamp = StampRecord(
             id=stamp_id,
             poster=caller,
@@ -109,7 +120,8 @@ class TrialLine(contract.Contract):
             result_overall_status="",
             result_brief_title="",
             result_reason="",
-            stamper=""
+            stamper="",
+            posted_at_block=message.block_number
         )
         self.stamps[stamp_id] = stamp
         return stamp_id
@@ -128,7 +140,10 @@ class TrialLine(contract.Contract):
             "status": stamp.state,
             "stamper": stamp.stamper,
             "result_overall_status": stamp.result_overall_status,
-            "result_reason": stamp.result_reason
+            "result_reason": stamp.result_reason,
+            "posted_at_block": str(stamp.posted_at_block),
+            "lock_until_block": str(stamp.posted_at_block + LOCK_BLOCKS),
+            "expire_at_block": str(stamp.posted_at_block + EXPIRE_BLOCKS)
         })
 
     @public.view
@@ -147,16 +162,16 @@ class TrialLine(contract.Contract):
         treasury = u256(0)
         if owner_str:
             treasury = self.credits.get(Address(owner_str), u256(0))
-            
+
         locked = u256(0)
         for stamp in self.stamps.values():
             if stamp.state == "PENDING":
                 locked += stamp.bond
-                
+
         credits_out = u256(0)
         for val in self.credits.values():
             credits_out += val
-            
+
         return json.dumps({
             "treasury": str(treasury),
             "locked_in_open": str(locked),
@@ -171,7 +186,20 @@ class TrialLine(contract.Contract):
         stamp = self.stamps[stamp_id]
         if stamp.state != "PENDING":
             raise gl.vm.UserError("Not pending")
-        
+
+        # ── Self-resolution guard ──────────────────────────────────────────
+        # The poster is not allowed to stamp their own claim. This prevents
+        # them from manipulating the resolution outcome.
+        if str(caller) == str(stamp.poster):
+            raise gl.vm.UserError("Poster cannot self-resolve")
+
+        # ── Expire guard ───────────────────────────────────────────────────
+        # If the stamp has passed the expiry window, it must be settled via
+        # expire() instead, not match().
+        elapsed = message.block_number - stamp.posted_at_block
+        if elapsed >= EXPIRE_BLOCKS:
+            raise gl.vm.UserError("Stamp has expired — use expire()")
+
         value = stamp.bond
         poster = stamp.poster
         nct = stamp.nct_id
@@ -198,12 +226,12 @@ class TrialLine(contract.Contract):
             elif ret_status == expected_status:
                 protocol_fee = u256(int(value) * 25 // 1000)
                 poster_share = value - protocol_fee
-                
+
                 owner_str = self.config.get("owner", str(caller))
-                
+
                 self._pay(owner_str, protocol_fee)
                 self._pay(str(poster), poster_share)
-                
+
                 stamp.state = "MATCH"
                 stamp.result_overall_status = ret_status
             else:
@@ -224,9 +252,48 @@ class TrialLine(contract.Contract):
             raise gl.vm.UserError("Only poster can cancel")
         if stamp.state != "PENDING":
             raise gl.vm.UserError("Not pending")
-        
+
+        # ── Lock-in window check ───────────────────────────────────────────
+        # Cancellation is forbidden within the first LOCK_BLOCKS after posting.
+        # This prevents a poster from escaping accountability by canceling the
+        # moment a challenger appears.
+        elapsed = message.block_number - stamp.posted_at_block
+        if elapsed < LOCK_BLOCKS:
+            raise gl.vm.UserError("Stamp is locked for 10 blocks after posting — cannot cancel yet")
+
+        # ── Expire window check ────────────────────────────────────────────
+        # After EXPIRE_BLOCKS the poster must use expire() instead of cancel().
+        if elapsed >= EXPIRE_BLOCKS:
+            raise gl.vm.UserError("Stamp has expired — use expire() to reclaim bond")
+
         self._pay(str(caller), stamp.bond)
-        
+
         stamp.state = "CANCELED"
         stamp.result_reason = "Canceled by poster"
+        self.stamps[stamp_id] = stamp
+
+    @public.write
+    def expire(self, stamp_id: str):
+        """
+        Anyone may call expire() on a PENDING stamp that has surpassed
+        EXPIRE_BLOCKS without being challenged. Resolves as EXPIRED and
+        refunds the full bond to the original poster.
+
+        This prevents bonds being permanently locked if nobody challenges.
+        """
+        if stamp_id not in self.stamps:
+            raise gl.vm.UserError("Stamp not found")
+        stamp = self.stamps[stamp_id]
+        if stamp.state != "PENDING":
+            raise gl.vm.UserError("Not pending")
+
+        elapsed = message.block_number - stamp.posted_at_block
+        if elapsed < EXPIRE_BLOCKS:
+            raise gl.vm.UserError("Stamp has not expired yet")
+
+        self._pay(str(stamp.poster), stamp.bond)
+
+        stamp.state = "EXPIRED"
+        stamp.result_reason = "Expired with no challenger — bond returned to poster"
+        stamp.stamper = str(message.sender_address)
         self.stamps[stamp_id] = stamp

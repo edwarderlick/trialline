@@ -15,6 +15,11 @@ TrialLine is built strictly adhering to GenVM v0.6 RC guidelines. It avoids past
 - *No Custody Traps (Alpha Court / Remediate fix):* Funds are settled immediately via `_pay`. If a native EOA transfer fails, funds fall back safely to a `credits` ledger. The contract never holds funds it cannot return.
 - *Fail-Closed Architecture (LicenseLock fix):* Missing `overallStatus` keys, 404s, malformed JSON, or payloads exceeding 32KiB instantly trigger a `THIN` resolution (100% refund).
 - *Safe Withdrawals (Rainline fix):* `withdraw()` implements a native GenVM `emit_transfer()` to release funds and strictly adheres to the Checks-Effects-Interactions (CEI) pattern by zeroing credit balances *prior* to executing the transfer, avoiding reentrancy.
+- *No Self-Resolution (Steward Review fix):* The poster of a stamp is **blocked from calling `match()`** on their own claim. This prevents a malicious poster from steering the resolution outcome in their favour.
+- *Enforceable Bond with Resolution Window (Steward Review fix):* Stamps have a clear, immutable resolution lifecycle enforced by `posted_at_block`:
+  - **Block 0–9 (Lock Window):** Cancel is **forbidden**. The bond is fully at risk. Prevents posters from escaping accountability the moment a challenger appears.
+  - **Block 10–199 (Challenge Window):** Any third-party stamper may call `match()`. The poster may also cancel for a full refund during this window.
+  - **Block 200+ (Expiry):** If unchallenged, anyone may call `expire()` to trigger an automatic THIN-class refund to the poster. This prevents bonds from being permanently locked.
 
 ## Economics & Payout Matrix
 
@@ -32,10 +37,12 @@ Reviewers can use the following live fixtures to test the dApp locally or on-cha
 - **NCT00000000**: Submit to trigger a 404 on the API, resolving as `THIN` (100% refund).
 
 ### Local Test Suite
-The smart contract includes a highly comprehensive test suite covering all economic pathways, architectural safety features, and input validations:
+The smart contract includes a highly comprehensive test suite covering all economic pathways, architectural safety features, timing boundaries, and input validations:
 - **Happy Paths**: `MATCH`, `MISS`, `THIN`, `CANCELED`
 - **Fund Security**: Withdrawal execution, unauthorized cancel attempts, and Checks-Effects-Interactions validations.
 - **Data Validation**: Strict RegEx validations for clinical record identifiers.
+- **Resolution Window Boundaries**: Lock-in period prevents cancellation during first 10 blocks. Expire window confirms anyone can trigger THIN refund after 200 blocks.
+- **Self-Resolution Prevention**: Poster is blocked from calling `match()` on their own stamp.
 
 To run the deterministic pytest suite locally:
 ```bash
