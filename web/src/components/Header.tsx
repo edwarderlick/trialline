@@ -64,15 +64,23 @@ export function Header() {
           </div>
           
           {account ? (
-            <div className="flex items-center bg-surface-container-low rounded-DEFAULT p-1 shadow-[inset_0_1px_2px_rgba(43,30,22,0.04)]">
-              <div className="flex items-center gap-2 px-2.5 py-1">
-                <span className="font-label-sm text-label-sm font-semibold text-primary">{formatAddress(account)}</span>
-                <div className="h-3 w-px bg-outline-variant"></div>
-                <span className="font-label-sm text-label-sm text-secondary font-medium">Connected</span>
-              </div>
-              <button onClick={disconnect} title="Disconnect Wallet" suppressHydrationWarning className="hover:bg-error/10 hover:text-error text-on-surface-variant transition-colors p-1 rounded-sm flex items-center justify-center">
-                <span className="material-symbols-outlined text-[16px]">power_settings_new</span>
+            <div className="relative group">
+              <button className="flex items-center bg-surface-container-low hover:bg-surface-container-high transition-colors rounded-DEFAULT p-1 shadow-[inset_0_1px_2px_rgba(43,30,22,0.04)] cursor-pointer">
+                <div className="flex items-center gap-2 px-2.5 py-1">
+                  <span className="font-label-sm text-label-sm font-semibold text-primary">{formatAddress(account)}</span>
+                  <span className="material-symbols-outlined text-[16px] text-on-surface-variant">expand_more</span>
+                </div>
               </button>
+              <div className="absolute right-0 mt-2 w-48 bg-surface-container-high border border-outline-variant rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
+                <button 
+                  onClick={disconnect} 
+                  suppressHydrationWarning 
+                  className="w-full text-left px-4 py-2.5 text-sm text-error hover:bg-error/10 flex items-center gap-2 transition-colors font-medium"
+                >
+                  <span className="material-symbols-outlined text-[18px]">logout</span>
+                  Disconnect Wallet
+                </button>
+              </div>
             </div>
           ) : (
             <div className="relative group">
