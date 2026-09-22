@@ -47,6 +47,15 @@ class TrialLine(contract.Contract):
 
     def __init__(self):
         self.config["owner"] = str(message.sender_address)
+    def _pay(self, account: str, amount: u256):
+        if amount <= u256(0):
+            return
+        try:
+            _Recipient(account).emit_transfer(value=amount)
+        except Exception:
+            addr = Address(account)
+            current_credit = self.credits.get(addr, u256(0))
+            self.credits[addr] = current_credit + amount
 
     @public.write
     def withdraw(self):
@@ -55,14 +64,16 @@ class TrialLine(contract.Contract):
         if amount == u256(0):
             raise gl.vm.UserError("No credits")
         
+        # Zero the balance before transfer (CEI pattern)
+        self.credits[caller] = u256(0)
+
         # Transfer the funds back to the caller
         try:
             _Recipient(caller).emit_transfer(value=amount)
         except Exception:
+            # Revert the zeroing if transfer fails
+            self.credits[caller] = amount
             raise gl.vm.UserError("Transfer failed")
-
-        # Zero the balance after successful transfer
-        self.credits[caller] = u256(0)
 
     @public.write.payable
     def post_stamp(self, nct: str, status: str, nonce: str) -> str:
@@ -175,15 +186,13 @@ class TrialLine(contract.Contract):
             result = {"kind": "THIN", "reason": "Consensus Mismatch or Error"}
 
         if kind == "THIN":
-            current_poster_credit = self.credits.get(poster, u256(0))
-            self.credits[poster] = current_poster_credit + value
+            self._pay(str(poster), value)
             stamp.state = "THIN"
             stamp.result_reason = result.get("reason", "")
         else:
             ret_status = result.get("status", "")
             if not ret_status:
-                current_poster_credit = self.credits.get(poster, u256(0))
-                self.credits[poster] = current_poster_credit + value
+                self._pay(str(poster), value)
                 stamp.state = "THIN"
                 stamp.result_reason = "Empty status returned"
             elif ret_status == expected_status:
@@ -191,19 +200,14 @@ class TrialLine(contract.Contract):
                 poster_share = value - protocol_fee
                 
                 owner_str = self.config.get("owner", str(caller))
-                owner_addr = Address(owner_str)
                 
-                current_owner_credit = self.credits.get(owner_addr, u256(0))
-                self.credits[owner_addr] = current_owner_credit + protocol_fee
-                
-                current_poster_credit = self.credits.get(poster, u256(0))
-                self.credits[poster] = current_poster_credit + poster_share
+                self._pay(owner_str, protocol_fee)
+                self._pay(str(poster), poster_share)
                 
                 stamp.state = "MATCH"
                 stamp.result_overall_status = ret_status
             else:
-                current_caller_credit = self.credits.get(caller, u256(0))
-                self.credits[caller] = current_caller_credit + value
+                self._pay(str(caller), value)
                 stamp.state = "MISS"
                 stamp.result_overall_status = ret_status
 
@@ -221,8 +225,7 @@ class TrialLine(contract.Contract):
         if stamp.state != "PENDING":
             raise gl.vm.UserError("Not pending")
         
-        current_credit = self.credits.get(caller, u256(0))
-        self.credits[caller] = current_credit + stamp.bond
+        self._pay(str(caller), stamp.bond)
         
         stamp.state = "CANCELED"
         stamp.result_reason = "Canceled by poster"

@@ -31,6 +31,7 @@ gl_mock.evm = MagicMock()
 gl_mock.evm.contract_interface = passthrough
 gl_mock.public = MagicMock()
 gl_mock.public.write = passthrough
+gl_mock.public.write.payable = passthrough
 gl_mock.public.view = passthrough
 gl_mock.public.payable = passthrough
 gl_mock.vm = MagicMock()
@@ -53,10 +54,6 @@ def contract():
     contract_inst.stamps = HashMapMock()
     contract_inst.credits = HashMapMock()
     contract_inst.__init__()
-    
-    # We also need to mock _pay for tests
-    # Return False so the contract falls back to using the 'credits' mapping
-    contract_inst._pay = MagicMock(return_value=False)
     return contract_inst
 
 def test_post_stamp_unique_hashes(contract):
