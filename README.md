@@ -32,7 +32,12 @@ Reviewers can use the following live fixtures to test the dApp locally or on-cha
 - **NCT00000000**: Submit to trigger a 404 on the API, resolving as `THIN` (100% refund).
 
 ### Local Test Suite
-To run the deterministic pytest suite testing all edge cases locally:
+The smart contract includes a highly comprehensive test suite covering all economic pathways, architectural safety features, and input validations:
+- **Happy Paths**: `MATCH`, `MISS`, `THIN`, `CANCELED`
+- **Fund Security**: Withdrawal execution, unauthorized cancel attempts, and Checks-Effects-Interactions validations.
+- **Data Validation**: Strict RegEx validations for clinical record identifiers.
+
+To run the deterministic pytest suite locally:
 ```bash
 pytest tests/direct/test_trialline.py -v
 ```

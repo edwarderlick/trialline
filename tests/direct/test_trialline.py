@@ -25,10 +25,19 @@ gl_mock.storage.TreeMap = HashMapMock
 def passthrough(func_or_cls):
     return func_or_cls
 
+def contract_interface_mock(cls):
+    def __init__(self, address):
+        self.address = address
+    def emit_transfer(self, value):
+        raise Exception("Mock transfer failure to trigger credits fallback")
+    cls.__init__ = __init__
+    cls.emit_transfer = emit_transfer
+    return cls
+
 gl_mock.contract = MagicMock()
 gl_mock.contract.Contract = object
 gl_mock.evm = MagicMock()
-gl_mock.evm.contract_interface = passthrough
+gl_mock.evm.contract_interface = contract_interface_mock
 gl_mock.public = MagicMock()
 gl_mock.public.write = passthrough
 gl_mock.public.write.payable = passthrough
@@ -137,4 +146,72 @@ def test_thin(contract):
         stamp = json.loads(contract.get_stamp(stamp_id))
         assert stamp["status"] == "THIN"
 
+def test_post_stamp_invalid_nct(contract):
+    gl_mock.message.sender_address = "0xPoster"
+    gl_mock.message.value = 1000
+    
+    with pytest.raises(Exception, match="Invalid NCT ID format"):
+        contract.post_stamp("INVALID123", "COMPLETED", "nonce1")
 
+def test_cancel_stamp_success(contract):
+    gl_mock.message.sender_address = "0xPoster"
+    gl_mock.message.value = 1000
+    
+    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce1")
+    
+    contract.cancel(stamp_id)
+    
+    # Check balance
+    assert contract.credits.get("0xPoster", 0) == 1000
+    
+    stamp = json.loads(contract.get_stamp(stamp_id))
+    assert stamp["status"] == "CANCELED"
+
+def test_cancel_stamp_unauthorized(contract):
+    gl_mock.message.sender_address = "0xPoster"
+    gl_mock.message.value = 1000
+    
+    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce1")
+    
+    # Try to cancel as someone else
+    gl_mock.message.sender_address = "0xHacker"
+    with pytest.raises(Exception, match="Only poster can cancel"):
+        contract.cancel(stamp_id)
+
+def test_withdraw_success(contract):
+    gl_mock.message.sender_address = "0xPoster"
+    contract.credits["0xPoster"] = 5000
+    
+    with patch.object(contract.__class__, '_pay', autospec=True):
+        # In withdraw we test emit_transfer, so let's mock it to succeed for this test
+        # Actually withdraw calls _Recipient directly, so we just temporarily replace it
+        pass
+    
+    # Let's mock _Recipient to succeed just for this test
+    original_mock = gl_mock.evm.contract_interface
+    
+    def success_mock(cls):
+        def __init__(self, address):
+            self.address = address
+        def emit_transfer(self, value):
+            pass # Success!
+        cls.__init__ = __init__
+        cls.emit_transfer = emit_transfer
+        return cls
+
+    from contracts.trialline import _Recipient
+    _Recipient.emit_transfer = lambda self, value: None
+    
+    contract.withdraw()
+    
+    # After successful withdrawal, balance should be zero
+    assert contract.credits.get("0xPoster", 0) == 0
+    
+    # After successful withdrawal, balance should be zero
+    assert contract.credits.get("0xPoster", 0) == 0
+
+def test_withdraw_no_funds(contract):
+    gl_mock.message.sender_address = "0xPoorPerson"
+    
+    with pytest.raises(Exception, match="No credits"):
+        contract.withdraw()
