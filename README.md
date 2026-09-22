@@ -2,7 +2,7 @@
 TrialLine: A same-session, zero-window official NIH clinical trial status stamp on GenLayer Studio Devnet.
 
 ## Deployment Details
-- **Contract Address:** [`0x3936Fe91497BA82836f38e53471cC53d077d0D2a`](https://explorer-studio-dev.genlayer.com/address/0x3936Fe91497BA82836f38e53471cC53d077d0D2a)
+- **Contract Address:** [`0x08cc3691905776CB4D3987Bb586C27cf0B2385A9`](https://explorer-studio-dev.genlayer.com/address/0x08cc3691905776CB4D3987Bb586C27cf0B2385A9)
 - **Network:** Studio Devnet (Chain ID 61997)
 - **RPC:** [https://studio-dev.genlayer.com/api](https://studio-dev.genlayer.com/api)
 - **Explorer:** [https://explorer-studio-dev.genlayer.com/](https://explorer-studio-dev.genlayer.com/)
@@ -14,7 +14,7 @@ TrialLine is built strictly adhering to GenVM v0.6 RC guidelines. It avoids past
 - *No Unauthenticated URLs (Sybil Court fix):* The contract natively constructs the `clinicaltrials.gov` URL. Users cannot pass arbitrary evidence endpoints.
 - *No Custody Traps (Alpha Court / Remediate fix):* Funds are settled immediately via `_pay`. If a native EOA transfer fails, funds fall back safely to a `credits` ledger. The contract never holds funds it cannot return.
 - *Fail-Closed Architecture (LicenseLock fix):* Missing `overallStatus` keys, 404s, malformed JSON, or payloads exceeding 32KiB instantly trigger a `THIN` resolution (100% refund).
-- *Safe Withdrawals (Rainline fix):* `withdraw()` strictly attempts the native transfer *before* zeroing the ledger balance. Failed transfers revert, preserving user credit.
+- *Safe Withdrawals (Rainline fix):* `withdraw()` implements a native GenVM `emit_transfer()` to release funds and strictly adheres to the Checks-Effects-Interactions (CEI) pattern by zeroing credit balances *prior* to executing the transfer, avoiding reentrancy.
 
 ## Economics & Payout Matrix
 

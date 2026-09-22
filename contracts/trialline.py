@@ -6,6 +6,11 @@ from dataclasses import dataclass
 import genlayer as gl
 from genlayer import *
 
+@evm.contract_interface
+class _Recipient:
+    class View: pass
+    class Write: pass
+
 @storage.allow
 @dataclass
 class StampRecord:
@@ -49,9 +54,17 @@ class TrialLine(contract.Contract):
         amount = self.credits.get(caller, u256(0))
         if amount == u256(0):
             raise gl.vm.UserError("No credits")
+        
+        # Transfer the funds back to the caller
+        try:
+            _Recipient(caller).emit_transfer(value=amount)
+        except Exception:
+            raise gl.vm.UserError("Transfer failed")
+
+        # Zero the balance after successful transfer
         self.credits[caller] = u256(0)
 
-    @public.write.payable
+    @public.write
     def post_stamp(self, nct: str, status: str, nonce: str) -> str:
         caller = message.sender_address
         value = message.value
