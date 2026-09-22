@@ -64,7 +64,7 @@ class TrialLine(contract.Contract):
         # Zero the balance after successful transfer
         self.credits[caller] = u256(0)
 
-    @public.write
+    @public.write.payable
     def post_stamp(self, nct: str, status: str, nonce: str) -> str:
         caller = message.sender_address
         value = message.value
