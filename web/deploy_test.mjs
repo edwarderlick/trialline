@@ -3,7 +3,10 @@ import path from 'path';
 import { createClient, createAccount, chains, createFeesDistribution } from 'genlayer-js';
 
 async function main() {
-  const pk = "0xd5266757246cb8da9c8efeaea345ca46dc5996bf33e58b8921a513b53bba9bbe";
+  const pk = process.env.GENLAYER_PRIVATE_KEY;
+  if (!pk) {
+    throw new Error("GENLAYER_PRIVATE_KEY is required");
+  }
   const account = createAccount(pk);
   
   const client = createClient({

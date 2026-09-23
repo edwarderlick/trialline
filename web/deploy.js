@@ -14,7 +14,10 @@ async function main() {
   const contractCode = fs.readFileSync("../contracts/trialline.py", "utf8");
   console.log("Deploying contract...");
   try {
-    const privateKey = "0x" + "1".repeat(64);
+    const privateKey = process.env.GENLAYER_PRIVATE_KEY;
+    if (!privateKey) {
+      throw new Error("GENLAYER_PRIVATE_KEY is required");
+    }
     
     // Attempt deployment
     const tx = await client.deployContract({

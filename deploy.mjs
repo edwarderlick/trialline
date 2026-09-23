@@ -3,7 +3,10 @@ import { studioDevnet } from "genlayer-js/chains";
 import fs from "fs";
 
 async function main() {
-  const privateKey = process.env.GENLAYER_PRIVATE_KEY || "0x53c07886a117dc55ce54dc31a1fa99009a5ec1396b797ceea74be59c3a647d7d"; // standard local key
+  const privateKey = process.env.GENLAYER_PRIVATE_KEY;
+  if (!privateKey) {
+    throw new Error("GENLAYER_PRIVATE_KEY is required");
+  }
   const client = createClient({
     chain: studioDevnet,
     account: privateKey,

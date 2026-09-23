@@ -3,8 +3,11 @@ import { createAccount, createClient } from "genlayer-js";
 import { studioDevnet } from "genlayer-js/chains";
 
 function loadKey() {
-  const src = fs.readFileSync(new URL("./deploy.mjs", import.meta.url), "utf8");
-  return src.match(/0x[a-fA-F0-9]{64}/)[0];
+  const privateKey = process.env.GENLAYER_PRIVATE_KEY;
+  if (!privateKey) {
+    throw new Error("GENLAYER_PRIVATE_KEY is required");
+  }
+  return privateKey;
 }
 
 function pick(tx) {

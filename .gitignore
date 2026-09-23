@@ -1,1 +1,7 @@
 .vercel
+__pycache__/
+*.py[cod]
+pytest_output.txt
+.env
+.env.*
+!.env.example

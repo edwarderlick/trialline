@@ -4,11 +4,11 @@ import { createAccount, createClient } from "genlayer-js";
 import { studioDevnet } from "genlayer-js/chains";
 
 function loadKey() {
-  if (process.env.GENLAYER_PRIVATE_KEY) return process.env.GENLAYER_PRIVATE_KEY;
-  const src = fs.readFileSync(new URL("./deploy.mjs", import.meta.url), "utf8");
-  const match = src.match(/0x[a-fA-F0-9]{64}/);
-  if (!match) throw new Error("No deployer key in env or web/deploy.mjs");
-  return match[0];
+  const privateKey = process.env.GENLAYER_PRIVATE_KEY;
+  if (!privateKey) {
+    throw new Error("GENLAYER_PRIVATE_KEY is required");
+  }
+  return privateKey;
 }
 
 function summarize(tx) {
