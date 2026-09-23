@@ -13,7 +13,7 @@ export default function Page() {
   const { kit, address } = useGenLayer();
   const [nonce, setNonce] = useState("");
   useEffect(() => { setNonce(Math.random().toString(36).substring(2, 15)); }, []);
-  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x0000000000000000000000000000000000000000";
+  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xFe1EC20FA2C5808E5e83A0A6b457380d2dFD9C3c";
   const isValidNct = /^NCT\d{8}$/i.test(nct);
 
   return (

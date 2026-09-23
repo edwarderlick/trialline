@@ -1,7 +1,6 @@
 # { "Depends": "py-genlayer:test" }
 import json
 import hashlib
-import re
 from dataclasses import dataclass
 import genlayer as gl
 from genlayer import *
@@ -89,7 +88,7 @@ class TrialLine(contract.Contract):
             raise gl.vm.UserError("Value must be > 0")
 
         norm_nct = nct.strip().upper().replace(" ", "")
-        if not re.match(r"^NCT\d{8}$", norm_nct):
+        if len(norm_nct) != 11 or not norm_nct.startswith("NCT") or not norm_nct[3:].isdigit():
             raise gl.vm.UserError("Invalid NCT ID format")
 
         h_ctx = hashlib.sha256(
@@ -102,7 +101,7 @@ class TrialLine(contract.Contract):
 
         stamp_id = h_ctx
 
-        if stamp_id in self.stamps:
+        if self.stamps.get(stamp_id) is not None:
             raise gl.vm.UserError("Stamp already exists")
 
         stamp = StampRecord(
@@ -123,7 +122,7 @@ class TrialLine(contract.Contract):
 
     @public.view
     def get_stamp(self, stamp_id: str) -> str:
-        if stamp_id not in self.stamps:
+        if self.stamps.get(stamp_id) is None:
             return "{}"
         stamp = self.stamps[stamp_id]
         return json.dumps({
@@ -175,7 +174,8 @@ class TrialLine(contract.Contract):
     @public.write
     def match(self, stamp_id: str):
         caller = message.sender_address
-        if stamp_id not in self.stamps:
+        stamp = self.stamps.get(stamp_id)
+        if stamp is None:
             raise gl.vm.UserError("Stamp not found")
         stamp = self.stamps[stamp_id]
         if stamp.state != "PENDING":
@@ -200,7 +200,7 @@ class TrialLine(contract.Contract):
         expected_status = stamp.status
 
         try:
-            result_str = eq_principle.strict_eq(lambda: fetch_nih(nct))
+            result_str = gl.eq_principle.strict_eq(lambda: fetch_nih(nct))
             result = json.loads(result_str)
             kind = result.get("kind", "THIN")
         except Exception:
@@ -247,7 +247,8 @@ class TrialLine(contract.Contract):
 
         This prevents bonds being permanently locked if nobody challenges.
         """
-        if stamp_id not in self.stamps:
+        stamp = self.stamps.get(stamp_id)
+        if stamp is None:
             raise gl.vm.UserError("Stamp not found")
         stamp = self.stamps[stamp_id]
         if stamp.state != "PENDING":

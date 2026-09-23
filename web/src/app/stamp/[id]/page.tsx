@@ -12,7 +12,7 @@ export default function Page() {
   const [isStamping, setIsStamping] = useState(false);
   const [isExpiring, setIsExpiring] = useState(false);
   const { kit, address } = useGenLayer();
-  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x0000000000000000000000000000000000000000";
+  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xFe1EC20FA2C5808E5e83A0A6b457380d2dFD9C3c";
 
   interface Stamp {
     id: string;

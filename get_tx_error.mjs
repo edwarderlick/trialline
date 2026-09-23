@@ -1,13 +1,30 @@
-import { createClient } from "genlayer-js";
-import { studioDevnet } from "genlayer-js/chains";
+const rpcUrl = "https://studio-dev.genlayer.com/api";
 
 async function main() {
-  const client = createClient({
-    chain: studioDevnet,
-  });
-
-  const txHash = "0x07dbd424b910e54d60c23933c0de9859f5b66d48b715fb823bd8dd2a3b01cdf73"; // From screenshot: 0x07dbd424...1cdf73 -> wait, I cannot read the full hash from the image directly!
+  const latestRes = await fetch(rpcUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 }) });
+  const latestData = await latestRes.json();
+  let latestBlock = parseInt(latestData.result, 16);
   
-  // Let me just query the latest transactions for the contract address
-  // Actually, I can query events/transactions for the contract! Or read it from the user?
+  for (let i = latestBlock; i > latestBlock - 100; i--) {
+    const payload = {
+      jsonrpc: "2.0",
+      method: "eth_getBlockByNumber",
+      params: ["0x" + i.toString(16), true],
+      id: 1
+    };
+    const res = await fetch(rpcUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (!data.result) continue;
+    const txs = data.result.transactions;
+    for (const tx of txs) {
+      if (tx.to && tx.to.toLowerCase() === "0x9c97c2e09e9d1dc52a8c3fada2a889cfbe960a57".toLowerCase()) {
+        console.log("Found tx:", tx.hash);
+        const rcptPayload = { jsonrpc: "2.0", method: "eth_getTransactionReceipt", params: [tx.hash], id: 2 };
+        const rcptRes = await fetch(rpcUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rcptPayload) });
+        const rcptData = await rcptRes.json();
+        console.log("Receipt error:", rcptData.result?.genvm_result);
+      }
+    }
+  }
 }
+main();
