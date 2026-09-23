@@ -1,5 +1,5 @@
 "use client";
-import { useState, useId } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useGenLayer } from "../../hooks/useGenLayer";
 import { GenLayerTransactionPanel } from "@genlayer/transaction-kit-react";
@@ -11,7 +11,8 @@ export default function Page() {
   const [bond, setBond] = useState("5.00");
   const [txSuccess, setTxSuccess] = useState(false);
   const { kit, address } = useGenLayer();
-  const nonce = useId();
+  const [nonce, setNonce] = useState("");
+  useEffect(() => { setNonce(Math.random().toString(36).substring(2, 15)); }, []);
   const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x0000000000000000000000000000000000000000";
   const isValidNct = /^NCT\d{8}$/i.test(nct);
 
@@ -441,6 +442,7 @@ export default function Page() {
           if ((status === 'ACCEPTED' || status === 'FINALIZED') && 
               (execution === 'FINISHED_WITH_RETURN' || execution === 'accepted' || !execution)) {
             setTimeout(() => setTxSuccess(true), 0);
+            setNonce(Math.random().toString(36).substring(2, 15)); // Reset nonce for next potential stamp
           } else {
             console.error("Transaction failed execution:", result, result instanceof Error ? result.message : JSON.stringify(result, Object.getOwnPropertyNames(result)));
           }
@@ -449,7 +451,8 @@ export default function Page() {
           kind: 'write',
           address: contractAddress as `0x${string}`,
           method: 'post_stamp',
-          args: [nct, status, nonce]
+          args: [nct, status, nonce],
+          value: BigInt(Math.floor(parseFloat(bond || "0") * 1e18))
         }}
       />
     ) : (
