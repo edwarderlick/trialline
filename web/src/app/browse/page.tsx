@@ -4,7 +4,7 @@ import Link from "next/link";
 import { createClient } from "genlayer-js";
 import { studioDevnet } from "genlayer-js/chains";
 
-const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xFe1EC20FA2C5808E5e83A0A6b457380d2dFD9C3c";
+const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x69d4772358b24de4B2570B133257e3d0e88522aC";
 
 interface StampRecord {
   id: string;
