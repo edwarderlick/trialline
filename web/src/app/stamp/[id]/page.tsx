@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useGenLayer } from "../../../hooks/useGenLayer";
@@ -64,16 +64,38 @@ export default function Page() {
 
   useEffect(() => {
     if (stamp?.status !== "PENDING") return;
+    const expiresAt = Number(stamp.expires_at_unix || "0") * 1000;
     let interval = 0;
+    const publish = () => {
+      const now = Date.now();
+      setNowMs(now);
+      if (expiresAt > 0 && now >= expiresAt && interval) {
+        window.clearInterval(interval);
+        interval = 0;
+      }
+    };
     const first = window.setTimeout(() => {
-      setNowMs(Date.now());
-      interval = window.setInterval(() => setNowMs(Date.now()), 1000);
+      publish();
+      if (!expiresAt || Date.now() < expiresAt) {
+        interval = window.setInterval(publish, 1000);
+      }
     }, 0);
     return () => {
       window.clearTimeout(first);
-      window.clearInterval(interval);
+      if (interval) window.clearInterval(interval);
     };
-  }, [stamp?.status]);
+  }, [stamp?.status, stamp?.expires_at_unix]);
+
+  const pendingAction = isExpiring ? "expire" : "match";
+  const writeTx = useMemo(
+    () => ({
+      kind: "write" as const,
+      address: contractAddress as `0x${string}`,
+      method: pendingAction,
+      args: [stamp?.id ?? ""],
+    }),
+    [contractAddress, pendingAction, stamp?.id]
+  );
 
   if (loading) {
     return <div className="p-8 text-center text-outline">Loading registry record...</div>;
@@ -246,12 +268,7 @@ export default function Page() {
                                 setIsExpiring(false);
                                 window.location.reload();
                               }}
-                              tx={{
-                                kind: 'write',
-                                address: contractAddress as `0x${string}`,
-                                method: isExpiring ? 'expire' : 'match',
-                                args: [stamp.id]
-                              }}
+                              tx={writeTx}
                           />
                           <button onClick={() => { setIsStamping(false); setIsExpiring(false); }} className="px-4 py-2 text-on-surface-variant text-label-sm font-label-sm hover:text-error">Close</button>
                         </div>
