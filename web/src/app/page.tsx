@@ -89,7 +89,7 @@ export default function Page() {
           Put money on what the NIH <span className="italic text-secondary">currently says</span> about any clinical trial.
         </h1>
 <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl leading-relaxed">
-          TrialLine is an immutable, same-session official-record stamp on GenLayer Studio Next. A poster locks test GEN on an NCT Identifier paired with an official regulatory status chip.
+          TrialLine is an immutable NIH status stamp on GenLayer Studio Next. A poster locks test GEN for 10 minutes on an NCT Identifier paired with an official regulatory status chip.
         </p>
 
 <div className="bg-surface-container-low p-5 rounded-DEFAULT space-y-3.5 shadow-sm">
@@ -102,13 +102,13 @@ export default function Page() {
 <div className="flex items-start gap-3">
 <span className="material-symbols-outlined text-secondary text-[18px] mt-0.5">bolt</span>
 <div className="font-body-md text-body-md text-on-surface">
-<strong className="font-semibold text-primary">Instant Single-Session Settlement:</strong> Resolves to <span className="font-label-sm font-semibold text-[#536233] bg-[#eef3e6] px-1 py-0.5 rounded-DEFAULT">MATCH</span>, <span className="font-label-sm font-semibold text-[#a0381c] bg-[#f9eae1] px-1 py-0.5 rounded-DEFAULT">MISS</span>, or <span className="font-label-sm font-semibold text-[#966517] bg-[#fdf5e2] px-1 py-0.5 rounded-DEFAULT">THIN</span> in the exact same transaction block.
+<strong className="font-semibold text-primary">Ten-minute challenge, then one transaction:</strong> The stamp stays PENDING for 10 minutes. A challenger resolves it to <span className="font-label-sm font-semibold text-[#536233] bg-[#eef3e6] px-1 py-0.5 rounded-DEFAULT">MATCH</span>, <span className="font-label-sm font-semibold text-[#a0381c] bg-[#f9eae1] px-1 py-0.5 rounded-DEFAULT">MISS</span>, or <span className="font-label-sm font-semibold text-[#966517] bg-[#fdf5e2] px-1 py-0.5 rounded-DEFAULT">THIN</span> in that transaction. After 10 minutes, match() closes and anyone can expire the bond back to the poster.
             </div>
 </div>
 <div className="flex items-start gap-3">
 <span className="material-symbols-outlined text-secondary text-[18px] mt-0.5">cancel_presentation</span>
 <div className="font-body-md text-body-md text-on-surface">
-<strong className="font-semibold text-primary">Zero Editorial Discretion:</strong> No subjective intermediary, no 7-day multi-sig delay, no party-supplied URLs, and no delayed UTC maturity dates.
+<strong className="font-semibold text-primary">Zero Editorial Discretion:</strong> No subjective intermediary, no 7-day multi-sig delay, and no party-supplied URLs. The only clock is the 10-minute challenge window stored on the stamp.
             </div>
 </div>
 </div>
@@ -184,7 +184,7 @@ export default function Page() {
 <div className="mt-5 p-3.5 bg-secondary-fixed text-on-secondary-fixed rounded-DEFAULT shadow-sm flex items-start gap-2.5 transform -rotate-1">
 <span className="material-symbols-outlined text-secondary text-[18px] shrink-0 mt-0.5">sticky_note_2</span>
 <div className="text-[12px] font-body-sm leading-snug">
-<strong className="font-semibold">Execution rule:</strong> When clinicaltrials.gov status string exactly mirrors the poster&apos;s commitment, bond unlocks instantly to the counterparty or claimer.
+<strong className="font-semibold">Execution rule:</strong> When a challenger stamps during the window and the NIH status matches, the poster is credited 97.5% in that transaction. A mismatch pays the challenger. A missing status refunds the poster.
             </div>
 </div>
 </div>
@@ -201,7 +201,7 @@ export default function Page() {
 <h2 className="font-headline-lg text-headline-lg text-primary font-normal mt-1">Built to eliminate the friction of subjective oracles.</h2>
 </div>
 <p className="font-body-sm text-body-sm text-on-surface-variant max-w-md">
-        Traditional prediction models depend on human jurors and delayed windows. TrialLine converts the authoritative government registry into an instantaneous, deterministic state machine.
+        Traditional prediction models depend on human jurors. TrialLine reads the government registry directly, then keeps the bond locked for a fixed 10-minute challenge.
       </p>
 </div>
 <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
@@ -229,14 +229,14 @@ export default function Page() {
 <span className="material-symbols-outlined text-[22px]">flash_on</span>
 </div>
 <div className="font-label-sm text-[11px] uppercase tracking-wider text-outline font-semibold">Execution Speed</div>
-<h3 className="font-headline-sm text-headline-sm text-primary font-medium">Single-Session Settlement</h3>
+<h3 className="font-headline-sm text-headline-sm text-primary font-medium">Ten-Minute Challenge Window</h3>
 <p className="font-body-md text-body-md text-on-surface-variant">
             Evaluates directly through the GenLayer consensus network. Once posted, the bond stays locked for 10 minutes. The poster cannot cancel or expire it during that window.
           </p>
 </div>
 <div className="bg-surface-container-lowest p-3 rounded-DEFAULT font-label-sm text-[11px] text-on-surface flex items-center gap-2">
-<span className="material-symbols-outlined text-secondary text-[16px]">timer_off</span>
-<span>Resolves within 1 confirmation block</span>
+<span className="material-symbols-outlined text-secondary text-[16px]">timer</span>
+<span>Bond locked for the full 10 minutes</span>
 </div>
 </div>
 
@@ -248,7 +248,7 @@ export default function Page() {
 <div className="font-label-sm text-[11px] uppercase tracking-wider text-outline font-semibold">Integrity Shield</div>
 <h3 className="font-headline-sm text-headline-sm text-primary font-medium">Finite Five-State Machine</h3>
 <p className="font-body-md text-body-md text-on-surface-variant">
-            Only five definitive outcomes can exist: <code className="font-label-sm text-primary">OPEN</code>, <code className="font-label-sm text-[#536233]">MATCH</code>, <code className="font-label-sm text-[#a0381c]">MISS</code>, <code className="font-label-sm text-[#966517]">THIN</code>, or <code className="font-label-sm text-outline">CANCELED</code>. If an API payload is malformed or unindexed, THIN guarantees 100% refund protection.
+            A pending stamp is OPEN for 10 minutes, then ends as <code className="font-label-sm text-[#536233]">MATCH</code>, <code className="font-label-sm text-[#a0381c]">MISS</code>, <code className="font-label-sm text-[#966517]">THIN</code>, or <code className="font-label-sm text-outline">EXPIRED</code>. Cancel never pays. If an API payload is malformed or unindexed, THIN refunds the poster in full.
           </p>
 </div>
 <div className="bg-surface-container-lowest p-3 rounded-DEFAULT font-label-sm text-[11px] text-on-surface flex items-center gap-2">
@@ -264,7 +264,7 @@ export default function Page() {
 <span className="font-label-sm text-label-sm uppercase tracking-widest text-secondary font-semibold">Deterministic Workflow</span>
 <h2 className="font-headline-lg text-headline-lg text-primary font-normal mt-1">From Clinical Identifier to On-Chain Finality</h2>
 <p className="font-body-md text-body-md text-on-surface-variant mt-2">
-        See how simple and programmatic protocol attestations run from creation to instant capital disbursement.
+        A poster locks the bond, challengers have 10 minutes, and one transaction then pays MATCH, MISS, THIN, or an expire refund.
       </p>
 </div>
 
@@ -288,7 +288,7 @@ export default function Page() {
 </div>
 <h4 className="font-headline-sm text-[18px] leading-snug text-primary font-medium">Position Sits Open</h4>
 <p className="font-body-sm text-body-sm text-on-surface-variant">
-          The stamp sits openly in the public mempool. Any analyst, monitor, or counterparty can inspect the parameters.
+          The stamp stays PENDING for 10 minutes. Anyone except the poster can challenge it. Cancel is rejected for the whole life of the stamp.
         </p>
 </div>
 
@@ -308,9 +308,9 @@ export default function Page() {
 <span className="font-label-sm text-label-sm text-secondary font-bold">STEP 04</span>
 <span className="font-label-sm text-[10px] bg-[#eef3e6] text-[#536233] px-1.5 py-0.5 rounded-DEFAULT font-semibold">FINAL</span>
 </div>
-<h4 className="font-headline-sm text-[18px] leading-snug text-primary font-medium">Instant Block Settlement</h4>
+<h4 className="font-headline-sm text-[18px] leading-snug text-primary font-medium">One-Transaction Settlement</h4>
 <p className="font-body-sm text-body-sm text-on-surface-variant">
-          JSON string match yields MATCH payout. Mismatch triggers MISS forfeit. Corrupted responses result in a 100% THIN refund.
+          Inside the window, a status match pays MATCH, a mismatch pays MISS, and a bad feed pays THIN. After 10 minutes, expire refunds the poster.
         </p>
 </div>
 </div>
@@ -354,7 +354,7 @@ export default function Page() {
 <div className="font-headline-lg text-headline-lg text-primary font-normal mt-1">1,489 <span className="font-label-md text-label-md text-outline">STAMPS</span></div>
 <div className="font-body-sm text-body-sm text-on-surface-variant mt-1 flex items-center gap-1">
 <span className="material-symbols-outlined text-[#536233] text-[14px]">verified</span>
-<span>100% same-session settled</span>
+<span>Settled by match or expire</span>
 </div>
 </div>
 
@@ -367,11 +367,11 @@ export default function Page() {
 </div>
 
 <div className="bg-surface-container-low p-5 rounded-DEFAULT shadow-sm">
-<span className="font-label-sm text-[11px] uppercase tracking-wider text-outline">Average Settlement Latency</span>
-<div className="font-headline-lg text-headline-lg text-primary font-normal mt-1">1.8 <span className="font-label-md text-label-md text-secondary">SECONDS</span></div>
+<span className="font-label-sm text-[11px] uppercase tracking-wider text-outline">Challenge Window</span>
+<div className="font-headline-lg text-headline-lg text-primary font-normal mt-1">10 <span className="font-label-md text-label-md text-secondary">MINUTES</span></div>
 <div className="font-body-sm text-body-sm text-on-surface-variant mt-1 flex items-center gap-1">
-<span className="material-symbols-outlined text-secondary text-[14px]">bolt</span>
-<span>Single write block finality</span>
+<span className="material-symbols-outlined text-secondary text-[14px]">timer</span>
+<span>Then match closes and expire opens</span>
 </div>
 </div>
 </div>
@@ -399,7 +399,7 @@ export default function Page() {
 </tr>
 <tr className="bg-surface-container-low">
 <td className="py-3 px-4 font-semibold text-primary">Settlement Window</td>
-<td className="py-3 px-4 text-secondary font-medium">Immediate: exact block evaluation</td>
+<td className="py-3 px-4 text-secondary font-medium">10 minutes, then one transaction</td>
 <td className="py-3 px-4 text-on-surface-variant">3 to 14 business days</td>
 </tr>
 <tr className="bg-surface-container-lowest">

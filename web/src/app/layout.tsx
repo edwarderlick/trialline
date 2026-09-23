@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "@genlayer/transaction-kit-react/styles.css";
-import Link from "next/link";
 import { WalletProvider } from "../lib/WalletProvider";
 import { Header } from "../components/Header";
 

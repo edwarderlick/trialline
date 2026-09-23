@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useGenLayer } from "../../hooks/useGenLayer";
 import { GenLayerTransactionPanel } from "@genlayer/transaction-kit-react";
@@ -11,8 +11,7 @@ export default function Page() {
   const bond = "5.00";
   const [txSuccess, setTxSuccess] = useState(false);
   const { kit, address } = useGenLayer();
-  const [nonce, setNonce] = useState("");
-  useEffect(() => { setNonce(Math.random().toString(36).substring(2, 15)); }, []);
+  const [nonce, setNonce] = useState(() => Math.random().toString(36).substring(2, 15));
   const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xD84133C446fa5872e3Fb9Ded0B3c1061D302B661";
   const isValidNct = /^NCT\d{8}$/i.test(nct);
 

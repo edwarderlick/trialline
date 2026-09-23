@@ -63,8 +63,17 @@ export default function Page() {
   }, [id, contractAddress]);
 
   useEffect(() => {
-    setNowMs(Date.now());
-  }, []);
+    if (stamp?.status !== "PENDING") return;
+    let interval = 0;
+    const first = window.setTimeout(() => {
+      setNowMs(Date.now());
+      interval = window.setInterval(() => setNowMs(Date.now()), 1000);
+    }, 0);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(interval);
+    };
+  }, [stamp?.status]);
 
   if (loading) {
     return <div className="p-8 text-center text-outline">Loading registry record...</div>;
@@ -86,7 +95,9 @@ export default function Page() {
   const bondFrac = (bondWei % oneGen) / (oneGen / BigInt(100));
   const bondValue = `${bondWhole}.${bondFrac.toString().padStart(2, "0")}`;
   const expiresMs = Number(stamp.expires_at_unix || "0") * 1000;
-  const windowOpen = nowMs === null || !expiresMs || nowMs < expiresMs;
+  const clockReady = nowMs !== null && expiresMs > 0;
+  const windowOpen = clockReady && nowMs < expiresMs;
+  const windowClosed = clockReady && nowMs >= expiresMs;
   const isPoster = address?.toLowerCase() === stamp.poster.toLowerCase();
   const expiresLabel = expiresMs
     ? new Date(expiresMs).toISOString().replace(".000Z", "Z")
@@ -196,24 +207,31 @@ export default function Page() {
                         </span>
                       </div>
                       <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-                        {windowOpen
-                          ? "Open for challengers. The poster cannot cancel or expire this bond until the challenge window closes."
-                          : "The challenge window has closed. Expire returns the original bond to the poster."}
+                        {!clockReady
+                          ? "Checking whether the 10-minute challenge window is still open."
+                          : windowOpen
+                            ? "Open for challengers. The poster cannot cancel, self-resolve, or expire this bond until the window closes."
+                            : "Challenge window closed. Expire is available and returns the original bond to the poster."}
                       </p>
                     </div>
                     <div className="flex items-center gap-2.5 shrink-0">
                       {!isStamping && !isExpiring ? (
                         <>
-                          {!isPoster && (
+                          {windowOpen && !isPoster && (
                             <button onClick={() => setIsStamping(true)} className="px-5 py-2.5 rounded-DEFAULT bg-primary hover:bg-primary-container text-on-primary font-label-lg text-label-lg tracking-wider uppercase transition-all shadow-sm flex items-center gap-2">
                               <span className="material-symbols-outlined text-[18px]">verified</span>
                               <span>Stamp Now</span>
                             </button>
                           )}
-                          {isPoster && (
-                            <button onClick={() => setIsExpiring(true)} disabled={windowOpen} className="px-4 py-2.5 rounded-DEFAULT bg-surface-container-low text-on-surface-variant font-label-md text-label-md tracking-wider uppercase transition-all border border-outline-variant flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
+                          {windowOpen && isPoster && (
+                            <span className="px-4 py-2.5 rounded-DEFAULT bg-surface-container-low text-on-surface-variant font-label-md text-label-md tracking-wider uppercase border border-outline-variant">
+                              Locked until close
+                            </span>
+                          )}
+                          {windowClosed && (
+                            <button onClick={() => setIsExpiring(true)} className="px-4 py-2.5 rounded-DEFAULT bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md tracking-wider uppercase transition-all shadow-sm flex items-center gap-1.5">
                               <span className="material-symbols-outlined text-[16px]">hourglass_bottom</span>
-                              <span>{windowOpen ? "Locked until close" : "Expire"}</span>
+                              <span>Expire</span>
                             </button>
                           )}
                         </>

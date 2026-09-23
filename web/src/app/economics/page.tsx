@@ -227,12 +227,12 @@ export default function Page() {
               <div className="bg-surface-container-lowest p-space-lg shadow-sm flex flex-col justify-between">
                 <div className="flex flex-col gap-space-sm">
                   <div className="flex items-center justify-between">
-                    <span className="font-label-md text-label-md px-2 py-0.5 bg-[#ECEAE5] text-[#5E564F] font-semibold">[CANCELED]</span>
-                    <span className="font-label-sm text-label-sm text-outline">Pre-execution Void</span>
+                    <span className="font-label-md text-label-md px-2 py-0.5 bg-[#ECEAE5] text-[#5E564F] font-semibold">[EXPIRED]</span>
+                    <span className="font-label-sm text-label-sm text-outline">Window Closed</span>
                   </div>
-                  <p className="font-headline-sm text-headline-sm text-primary">Voluntary Retraction</p>
+                  <p className="font-headline-sm text-headline-sm text-primary">Unchallenged Refund</p>
                   <p className="font-body-sm text-body-sm text-on-surface-variant">
-                    A coordinator may withdraw an attestation request before any validator or peer stamp commits. Full bond reclamation with zero gas drag beyond submission.
+                    cancel() never pays, during the 10-minute window or after it. Once the window closes, anyone can call expire() and the original bond returns to the poster.
                   </p>
                 </div>
                 <div className="mt-space-lg bg-surface-container-low p-space-sm space-y-2">

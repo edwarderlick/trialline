@@ -87,7 +87,7 @@ export default function Page() {
 </div>
 <h1 className="font-headline-xl text-headline-xl text-primary tracking-tight font-normal">Browse Stamps</h1>
 <p className="font-body-md text-body-md text-on-surface-variant">
-        Official ClinicalTrials.gov status attestations on GenLayer Studio Next. Settle any OPEN row instantly through deterministic oracle queries.
+        Official ClinicalTrials.gov status attestations on GenLayer Studio Next. OPEN rows can be challenged for 10 minutes. After that, expire the bond instead of stamping.
       </p>
 </div>
 
@@ -110,7 +110,7 @@ export default function Page() {
 <span className="font-label-sm text-label-sm uppercase text-outline">Settlement Window</span>
 <div className="flex items-center gap-1.5 mt-1">
 <span className="material-symbols-outlined text-secondary text-[18px]">verified</span>
-<span className="font-label-md text-label-md text-primary font-semibold">100% Same-Session</span>
+<span className="font-label-md text-label-md text-primary font-semibold">10 minutes</span>
 </div>
 </div>
 </div>
@@ -234,7 +234,7 @@ export default function Page() {
         <td className="py-3.5 px-4 text-right">
           <Link href={`/stamp/${stamp.id}`}>
             <button className="px-3.5 py-1.5 bg-primary hover:bg-primary-container text-on-primary rounded-DEFAULT font-label-sm text-label-sm uppercase tracking-wider transition-all shadow-sm">
-              {stamp.status === "PENDING" ? "Stamp Now" : "View"}
+              {stamp.status === "PENDING" ? "Open" : "View"}
             </button>
           </Link>
         </td>

@@ -14,13 +14,13 @@ export default function Page() {
               Section 01 // Protocol Architecture
             </span>
 <span className="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>
-<span className="font-label-sm text-label-sm text-outline uppercase tracking-wider">Same-Session Consensus</span>
+<span className="font-label-sm text-label-sm text-outline uppercase tracking-wider">10-Minute Challenge Window</span>
 </div>
 <h1 className="font-headline-xl text-headline-xl text-primary tracking-tight font-normal leading-[1.1]">
             Put money on what the NIH <span className="italic font-normal">currently says</span> about any clinical trial.
           </h1>
 <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl leading-relaxed">
-            TrialLine is a same-session official-record stamp on GenLayer Studio Next. No intermediary layer, no multi-day consensus wait, no party-supplied source URL, and no deferred UTC resolution window.
+            TrialLine stamps an official NIH record on GenLayer Studio Next. No intermediary, no multi-day consensus wait, and no party-supplied source URL. The bond stays locked for a 10-minute challenge window. A challenger settles it in one transaction; if nobody does, anyone can expire it and refund the poster.
           </p>
 </div>
 
@@ -123,7 +123,7 @@ export default function Page() {
                 Public Escrow Sits Open
               </h3>
 <p className="font-body-md text-body-md text-on-surface-variant">
-                Row sits marked OPEN. Anyone with a connected Web3 wallet can call the contract stamp function immediately.
+                The row stays PENDING for 10 minutes. Anyone except the poster can call match() during that window. After it closes, match() reverts and anyone can call expire().
               </p>
 </div>
 
@@ -138,7 +138,7 @@ export default function Page() {
 <div className="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
 <div className="bg-secondary h-full w-2/3"></div>
 </div>
-<span className="font-label-sm text-[9px] text-outline block text-right">Zero waiting or freeze delays</span>
+<span className="font-label-sm text-[9px] text-outline block text-right">Open for 10 minutes, then expire</span>
 </div>
 </div>
 <div className="mt-6 pt-4 flex items-center gap-2 font-label-sm text-label-sm text-outline">
@@ -189,7 +189,7 @@ export default function Page() {
                 Atomic Settlement
               </h3>
 <p className="font-body-md text-body-md text-on-surface-variant">
-                The contract evaluates MATCH, MISS, or THIN and moves balances instantaneously in that exact write block.
+                A match() call during the 10-minute window evaluates MATCH, MISS, or THIN and moves the bond in that same transaction. After the window, match() reverts and expire() refunds the poster.
               </p>
 </div>
 
