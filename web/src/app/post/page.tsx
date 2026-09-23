@@ -451,8 +451,7 @@ export default function Page() {
           kind: 'write',
           address: contractAddress as `0x${string}`,
           method: 'post_stamp',
-          args: [nct, status, nonce],
-          value: BigInt(Math.floor(parseFloat(bond || "0") * 1e18))
+          args: [nct, status, nonce]
         }}
       />
     ) : (
