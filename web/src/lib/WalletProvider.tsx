@@ -5,7 +5,7 @@ import { useWallet, EIP6963ProviderDetail, EIP1193Provider, EIP6963ProviderInfo 
 
 interface WalletContextType {
   providers: EIP6963ProviderDetail[];
-  selectedProvider: EIP1193Provider | null;
+  selectedProvider: EIP1193Provider | null | undefined;
   selectedProviderInfo?: EIP6963ProviderInfo;
   account: string | null;
   chainId: string | null;

@@ -78,11 +78,11 @@ export function useWallet() {
     const attemptHydration = async () => {
       for (const p of providers) {
         try {
-          const accounts = await p.provider.request({ method: 'eth_accounts' });
+          const accounts = await p.provider.request({ method: 'eth_accounts' }) as string[];
           if (accounts && accounts.length > 0) {
             setSelectedProviderDetail(p);
             setAccount(accounts[0]);
-            const currentChainId = await p.provider.request({ method: 'eth_chainId' });
+            const currentChainId = await p.provider.request({ method: 'eth_chainId' }) as string;
             setChainId(currentChainId);
             setIsWrongNetwork(checkIsWrongNetwork(currentChainId));
             break;
@@ -102,11 +102,13 @@ export function useWallet() {
     const provider = selectedProviderDetail?.provider;
     if (!provider) return;
 
-    const handleAccountsChanged = (accounts: string[]) => {
-      setAccount(accounts.length > 0 ? accounts[0] : null);
+    const handleAccountsChanged = (...args: unknown[]) => {
+      const accounts = args[0] as string[];
+      setAccount(accounts && accounts.length > 0 ? accounts[0] : null);
     };
 
-    const handleChainChanged = (newChainId: string) => {
+    const handleChainChanged = (...args: unknown[]) => {
+      const newChainId = args[0] as string;
       setChainId(newChainId);
       setIsWrongNetwork(checkIsWrongNetwork(newChainId));
     };
@@ -133,10 +135,10 @@ export function useWallet() {
     try {
       if (typeof window !== 'undefined') sessionStorage.removeItem('wallet_disconnected');
       setSelectedProviderDetail(providerDetail);
-      const accounts = await providerDetail.provider.request({ method: 'eth_requestAccounts' });
-      setAccount(accounts[0]);
+      const accounts = await providerDetail.provider.request({ method: 'eth_requestAccounts' }) as string[];
+      setAccount(accounts && accounts.length > 0 ? accounts[0] : null);
       
-      const currentChainId = await providerDetail.provider.request({ method: 'eth_chainId' });
+      const currentChainId = await providerDetail.provider.request({ method: 'eth_chainId' }) as string;
       setChainId(currentChainId);
       
       if (checkIsWrongNetwork(currentChainId)) {
