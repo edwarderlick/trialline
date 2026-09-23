@@ -1,27 +1,59 @@
-WARNING: File `gltest.config.yaml` not found in the current directory, using default config, create a `gltest.config.yaml` file to manage multiple networks
-INFO: Clearing artifacts directory: artifacts
-INFO: Using the following configuration:
-INFO:   RPC URL: http://127.0.0.1:4000/api
-INFO:   Selected Network: localnet
-INFO:   Available networks: ['localnet', 'studio_devnet', 'studionet', 'testnet_asimov', 'testnet_bradbury']
-INFO:   Selected chain type: localnet
-INFO:   Available chains: localnet, studio_devnet, studionet, testnet_asimov, testnet_bradbury
-INFO:   Contracts directory: contracts
-INFO:   Artifacts directory: artifacts
-INFO:   Environment: .env
-INFO:   Default wait interval: 3000 ms
-INFO:   Default wait retries: 50
-INFO:   Leader only mode: False
-============================= test session starts =============================
-platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\samir\AppData\Local\Programs\Python\Python312\python.exe
-cachedir: .pytest_cache
-rootdir: D:\trialline
-plugins: anyio-4.14.2, genlayer-test-0.30.0rc2
-collecting ... collected 4 items
+# TrialLine Test Evidence (GenLayer Resubmission)
 
-tests/direct/test_trialline.py::test_post_stamp_unique_hashes PASSED     [ 25%]
-tests/direct/test_trialline.py::test_match PASSED                        [ 50%]
-tests/direct/test_trialline.py::test_miss PASSED                         [ 75%]
-tests/direct/test_trialline.py::test_thin PASSED                         [100%]
+This document contains test output and validation for the new expiration-based lifecycle, self-resolution guards, and withdrawal limits built into TrialLine's intelligent contract.
 
-============================== 4 passed in 0.04s ==============================
+## 1. 200-Block Expiry Boundary Validation
+
+The `expire()` function is the sole fallback for reclaiming un-challenged bonds, accessible **only** after 200 blocks. 
+`cancel()` was fully removed to make the bond strictly enforceable during the challenge window.
+
+```python
+tests/direct/test_trialline.py::test_expire_before_window_fails PASSED
+tests/direct/test_trialline.py::test_expire_after_window PASSED
+```
+
+## 2. Poster Self-Resolution Guard
+
+Posters cannot challenge their own stamps using `match()`. This enforces market risk and prevents posters from self-recovering false claims before the expiry window.
+
+```python
+tests/direct/test_trialline.py::test_self_resolution_blocked PASSED
+```
+
+## 3. Payout and Balance Integrity (Transfer Failures)
+
+Bonds are now allocated to an internal ledger (`self.credits`) instead of executing native transfers immediately during `match()`. This ensures that execution boundaries are maintained even if a user is unable to receive native tokens directly during contract resolution. The user must manually invoke `withdraw()` to pull funds.
+
+```python
+tests/direct/test_trialline.py::test_withdraw_success PASSED
+tests/direct/test_trialline.py::test_withdraw_failure_preserves_credit PASSED
+tests/direct/test_trialline.py::test_withdraw_no_funds PASSED
+```
+
+## 4. Overall Pipeline Completion
+
+All 11 tests executed across the `localnet` state transition bounds pass cleanly:
+
+```text
+tests/direct/test_trialline.py::test_post_stamp_unique_hashes PASSED     [  9%]
+tests/direct/test_trialline.py::test_match PASSED                        [ 18%]
+tests/direct/test_trialline.py::test_miss PASSED                         [ 27%]
+tests/direct/test_trialline.py::test_thin PASSED                         [ 36%]
+tests/direct/test_trialline.py::test_post_stamp_invalid_nct PASSED       [ 45%]
+tests/direct/test_trialline.py::test_withdraw_success PASSED             [ 54%]
+tests/direct/test_trialline.py::test_withdraw_failure_preserves_credit PASSED [ 63%]
+tests/direct/test_trialline.py::test_withdraw_no_funds PASSED            [ 72%]
+tests/direct/test_trialline.py::test_self_resolution_blocked PASSED      [ 81%]
+tests/direct/test_trialline.py::test_expire_after_window PASSED          [ 90%]
+tests/direct/test_trialline.py::test_expire_before_window_fails PASSED   [100%]
+
+============================= 11 passed in 0.06s ==============================
+```
+
+## 5. Deployment Evidence
+
+The fully patched contract has been deployed to GenLayer Studio Devnet at:
+
+- **Network:** GenLayer Studio Next (chainId: 61997)
+- **Contract Address:** `0x9c97c2e09E9d1Dc52A8C3FaDA2A889cfBe960a57`
+- **Deploy TX Hash:** `0x2c2f3a4ca411f235d10158a0048d41d98cd95684a05f7f784d6f75500826c734`

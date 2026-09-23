@@ -184,7 +184,7 @@ export default function Page() {
 <div className="mt-5 p-3.5 bg-secondary-fixed text-on-secondary-fixed rounded-DEFAULT shadow-sm flex items-start gap-2.5 transform -rotate-1">
 <span className="material-symbols-outlined text-secondary text-[18px] shrink-0 mt-0.5">sticky_note_2</span>
 <div className="text-[12px] font-body-sm leading-snug">
-<strong className="font-semibold">Execution rule:</strong> When clinicaltrials.gov status string exactly mirrors the poster's commitment, bond unlocks instantly to the counterparty or claimer.
+<strong className="font-semibold">Execution rule:</strong> When clinicaltrials.gov status string exactly mirrors the poster&apos;s commitment, bond unlocks instantly to the counterparty or claimer.
             </div>
 </div>
 </div>
@@ -231,7 +231,7 @@ export default function Page() {
 <div className="font-label-sm text-[11px] uppercase tracking-wider text-outline font-semibold">Execution Speed</div>
 <h3 className="font-headline-sm text-headline-sm text-primary font-medium">Single-Session Settlement</h3>
 <p className="font-body-md text-body-md text-on-surface-variant">
-            Evaluates completely in the exact transaction block where <code className="text-primary font-label-sm">stamp()</code> is triggered. No 24-hour waiting windows, no challenge countdown timers, and zero post-session litigation.
+            Evaluates directly through the GenLayer consensus network. Once posted, claims enter a 200-block challenge window where anyone can verify the result.
           </p>
 </div>
 <div className="bg-surface-container-lowest p-3 rounded-DEFAULT font-label-sm text-[11px] text-on-surface flex items-center gap-2">
@@ -322,8 +322,8 @@ export default function Page() {
 </div>
 <pre className="font-label-sm text-label-sm text-primary leading-relaxed whitespace-pre-wrap"><code><span className="text-secondary">GET</span> https://clinicaltrials.gov/api/v2/studies/NCT04470427
 <span className="text-outline">RESPONSE_STATUS:</span> 200 OK
-<span className="text-outline">PAYLOAD:</span> {"{"} "protocolSection": {"{"} "statusModule": {"{"} "overallStatus": <span className="text-secondary font-bold">"COMPLETED"</span> {"}"} {"}"} {"}"}
-<span className="text-outline">ASSERTION:</span> committed_status == "COMPLETED" -&gt; <span className="text-[#536233] font-bold">TRUE [MATCH DISBURSED]</span></code></pre>
+<span className="text-outline">PAYLOAD:</span> {"{"} &quot;protocolSection&quot;: {"{"} &quot;statusModule&quot;: {"{"} &quot;overallStatus&quot;: <span className="text-secondary font-bold">&quot;COMPLETED&quot;</span> {"}"} {"}"} {"}"}
+<span className="text-outline">ASSERTION:</span> committed_status == &quot;COMPLETED&quot; -&gt; <span className="text-[#536233] font-bold">TRUE [MATCH DISBURSED]</span></code></pre>
 </div>
 </section>
 

@@ -8,9 +8,15 @@ export interface EIP6963ProviderInfo {
   rdns: string;
 }
 
+export interface EIP1193Provider {
+  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
+  on(eventName: string, handler: (...args: unknown[]) => void): void;
+  removeListener(eventName: string, handler: (...args: unknown[]) => void): void;
+}
+
 export interface EIP6963ProviderDetail {
   info: EIP6963ProviderInfo;
-  provider: any; // EIP-1193 provider
+  provider: EIP1193Provider;
 }
 
 export interface EIP6963AnnounceProviderEvent extends CustomEvent {
@@ -162,20 +168,20 @@ export function useWallet() {
         params: [{ chainId: GENLAYER_CHAIN_ID }],
       });
       setIsWrongNetwork(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // This error code indicates that the chain has not been added to MetaMask.
-      if (error.code === 4902) {
+      if ((error as { code?: number }).code === 4902) {
         try {
           await selectedProviderDetail.provider.request({
             method: 'wallet_addEthereumChain',
             params: [GENLAYER_CHAIN_PARAMS],
           });
           setIsWrongNetwork(false);
-        } catch (addError: any) {
-          console.error("Failed to add GenLayer network:", addError?.message || addError);
+        } catch (addError: unknown) {
+          console.error("Failed to add GenLayer network:", (addError as { message?: string })?.message || addError);
         }
       } else {
-        console.error("Failed to switch network:", error?.message || error);
+        console.error("Failed to switch network:", (error as { message?: string })?.message || error);
       }
     }
   }, [selectedProviderDetail]);

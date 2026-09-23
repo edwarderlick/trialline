@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useGenLayer } from "../../hooks/useGenLayer";
 import { GenLayerTransactionPanel } from "@genlayer/transaction-kit-react";
 import { createClient } from "genlayer-js";
@@ -134,6 +134,7 @@ export default function Page() {
                       }}
                       network="GenLayer Studio Next"
                       theme="light"
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       onDone={(result: any) => {
                         setTimeout(() => {
                           const status = result?.statusName || result?.status;

@@ -1,12 +1,12 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode } from 'react';
-import { useWallet, EIP6963ProviderDetail } from './wallet';
+import { useWallet, EIP6963ProviderDetail, EIP1193Provider, EIP6963ProviderInfo } from './wallet';
 
 interface WalletContextType {
   providers: EIP6963ProviderDetail[];
-  selectedProvider: any;
-  selectedProviderInfo?: any;
+  selectedProvider: EIP1193Provider | null;
+  selectedProviderInfo?: EIP6963ProviderInfo;
   account: string | null;
   chainId: string | null;
   isWrongNetwork: boolean;

@@ -10,11 +10,26 @@ import { studioDevnet } from "genlayer-js/chains";
 export default function Page() {
   const { id } = useParams();
   const [isStamping, setIsStamping] = useState(false);
-  const [isCanceling, setIsCanceling] = useState(false);
+  const [isExpiring, setIsExpiring] = useState(false);
   const { kit, address } = useGenLayer();
   const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x0000000000000000000000000000000000000000";
 
-  const [stamp, setStamp] = useState<any>(null);
+  interface Stamp {
+    id: string;
+    nct: string;
+    expected_status: string;
+    poster: string;
+    stamper: string;
+    bond: string;
+    value: string;
+    status: string;
+    result_overall_status: string;
+    result_reason: string;
+    posted_at_block: string;
+    expire_at_block: string;
+  }
+
+  const [stamp, setStamp] = useState<Stamp | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -93,8 +108,8 @@ export default function Page() {
               <div className={`px-2.5 py-1 text-label-sm font-label-sm rounded-DEFAULT transition-all ${stamp.status === 'THIN' ? 'bg-[#FDF5E2] text-[#966517] shadow-sm font-semibold' : 'text-on-surface-variant'}`}>
                 [THIN]
               </div>
-              <div className={`px-2.5 py-1 text-label-sm font-label-sm rounded-DEFAULT transition-all ${stamp.status === 'CANCELED' ? 'bg-[#ECEAE5] text-[#5E564F] shadow-sm font-semibold' : 'text-on-surface-variant'}`}>
-                [CANCELED]
+              <div className={`px-2.5 py-1 text-label-sm font-label-sm rounded-DEFAULT transition-all ${stamp.status === 'EXPIRED' ? 'bg-[#ECEAE5] text-[#5E564F] shadow-sm font-semibold' : 'text-on-surface-variant'}`}>
+                [EXPIRED]
               </div>
             </div>
           </div>
@@ -143,6 +158,19 @@ export default function Page() {
                       </div>
                     </div>
                   </div>
+                  
+                  {stamp.status === "PENDING" && (
+                    <div className="flex gap-4 mt-2">
+                      <div className="bg-surface-container px-3 py-1.5 rounded-DEFAULT">
+                        <span className="text-[10px] text-outline uppercase block">Posted at Block</span>
+                        <span className="text-label-sm font-semibold">{stamp.posted_at_block}</span>
+                      </div>
+                      <div className="bg-surface-container px-3 py-1.5 rounded-DEFAULT">
+                        <span className="text-[10px] text-outline uppercase block">Expires at Block</span>
+                        <span className="text-label-sm font-semibold">{stamp.expire_at_block}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -157,20 +185,20 @@ export default function Page() {
                         </span>
                       </div>
                       <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-                        Anyone can call Stamp. Execution queries NIH ClinicalTrials.gov and settles immediately.
+                        Open for challengers. If unchallenged after 200 blocks, it can be expired.
                       </p>
                     </div>
                     <div className="flex items-center gap-2.5 shrink-0">
-                      {!isStamping && !isCanceling ? (
+                      {!isStamping && !isExpiring ? (
                         <>
                           <button onClick={() => setIsStamping(true)} className="px-5 py-2.5 rounded-DEFAULT bg-primary hover:bg-primary-container text-on-primary font-label-lg text-label-lg tracking-wider uppercase transition-all shadow-sm flex items-center gap-2">
                             <span className="material-symbols-outlined text-[18px]">verified</span>
                             <span>Stamp Now</span>
                           </button>
                           {address?.toLowerCase() === stamp.poster.toLowerCase() && (
-                            <button onClick={() => setIsCanceling(true)} className="px-4 py-2.5 rounded-DEFAULT bg-surface-container-low hover:bg-surface-container hover:text-error text-on-surface-variant font-label-md text-label-md tracking-wider uppercase transition-all border border-outline-variant flex items-center gap-1.5">
-                              <span className="material-symbols-outlined text-[16px]">cancel</span>
-                              <span>Cancel</span>
+                            <button onClick={() => setIsExpiring(true)} className="px-4 py-2.5 rounded-DEFAULT bg-surface-container-low hover:bg-surface-container hover:text-error text-on-surface-variant font-label-md text-label-md tracking-wider uppercase transition-all border border-outline-variant flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-[16px]">hourglass_bottom</span>
+                              <span>Expire</span>
                             </button>
                           )}
                         </>
@@ -182,17 +210,17 @@ export default function Page() {
                               theme="light"
                               onDone={() => {
                                 setIsStamping(false);
-                                setIsCanceling(false);
+                                setIsExpiring(false);
                                 window.location.reload();
                               }}
                               tx={{
                                 kind: 'write',
                                 address: contractAddress as `0x${string}`,
-                                method: isCanceling ? 'cancel' : 'match',
+                                method: isExpiring ? 'expire' : 'match',
                                 args: [stamp.id]
                               }}
                           />
-                          <button onClick={() => { setIsStamping(false); setIsCanceling(false); }} className="px-4 py-2 text-on-surface-variant text-label-sm font-label-sm hover:text-error">Close</button>
+                          <button onClick={() => { setIsStamping(false); setIsExpiring(false); }} className="px-4 py-2 text-on-surface-variant text-label-sm font-label-sm hover:text-error">Close</button>
                         </div>
                       ) : (
                         <div className="p-2 bg-error-container text-on-error-container">Not Connected</div>
@@ -206,7 +234,7 @@ export default function Page() {
                         ${stamp.status === 'MATCH' ? 'bg-[#EEF3E6] text-[#536233]' : ''}
                         ${stamp.status === 'MISS' ? 'bg-[#F9EAE1] text-[#A0381C]' : ''}
                         ${stamp.status === 'THIN' ? 'bg-[#FDF5E2] text-[#966517]' : ''}
-                        ${stamp.status === 'CANCELED' ? 'bg-[#ECEAE5] text-[#5E564F]' : ''}
+                        ${stamp.status === 'EXPIRED' ? 'bg-[#ECEAE5] text-[#5E564F]' : ''}
                        `}>
                           [{stamp.status}] SETTLED RECORD
                        </span>
@@ -216,7 +244,7 @@ export default function Page() {
                         <span className="font-label-sm text-[10px] uppercase text-outline block mb-1">Executing Stamper</span>
                         <span className="font-label-sm text-label-sm font-semibold">{stamp.stamper || "N/A"}</span>
                       </div>
-                      {(stamp.status === 'THIN' || stamp.status === 'CANCELED') && (
+                      {(stamp.status === 'THIN' || stamp.status === 'EXPIRED') && (
                         <div>
                           <span className="font-label-sm text-[10px] uppercase text-outline block mb-1">Nullification Reason</span>
                           <span className="font-label-sm text-label-sm font-semibold text-error">{stamp.result_reason || "Unknown Error"}</span>
@@ -305,6 +333,17 @@ export default function Page() {
                     </div>
                     <p className="font-body-sm text-[12px] text-on-surface-variant mt-1 leading-tight">
                       API errors or unresolvable formats result in a 100% refund.
+                    </p>
+                  </div>
+                  <div className="p-3 bg-surface-container-low rounded-DEFAULT">
+                    <div className="flex items-center justify-between font-label-sm text-label-sm font-semibold text-primary">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-[#5E564F]"></span>
+                        Outcome [EXPIRED]
+                      </span>
+                    </div>
+                    <p className="font-body-sm text-[12px] text-on-surface-variant mt-1 leading-tight">
+                      Unchallenged stamps after 200 blocks result in a 100% refund.
                     </p>
                   </div>
                 </div>

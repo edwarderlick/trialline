@@ -180,7 +180,7 @@ export default function Page() {
                   </div>
                   <p className="font-headline-sm text-headline-sm text-primary">Discrepancy Challenge Won</p>
                   <p className="font-body-sm text-body-sm text-on-surface-variant">
-                    When verified NIH data contradicts submitted status parameters, 100% of the poster's bond is forfeited directly to the verification challenger.
+                    When verified NIH data contradicts submitted status parameters, 100% of the poster&apos;s bond is forfeited directly to the verification challenger.
                   </p>
                 </div>
                 <div className="mt-space-lg bg-surface-container-low p-space-sm space-y-2">

@@ -11,11 +11,6 @@ class _Recipient:
     class View: pass
     class Write: pass
 
-# ── Resolution window constants ─────────────────────────────────────────────
-# Posters cannot cancel within the first LOCK_BLOCKS after posting.
-# This prevents escaping a challenged stamp before anyone can respond.
-LOCK_BLOCKS   = u256(10)
-
 # After EXPIRE_BLOCKS with no challenger, anyone may call expire() for a
 # guaranteed 100% refund to the poster (resolves as EXPIRED / THIN-class).
 EXPIRE_BLOCKS = u256(200)
@@ -142,7 +137,6 @@ class TrialLine(contract.Contract):
             "result_overall_status": stamp.result_overall_status,
             "result_reason": stamp.result_reason,
             "posted_at_block": str(stamp.posted_at_block),
-            "lock_until_block": str(stamp.posted_at_block + LOCK_BLOCKS),
             "expire_at_block": str(stamp.posted_at_block + EXPIRE_BLOCKS)
         })
 
@@ -242,35 +236,7 @@ class TrialLine(contract.Contract):
         stamp.stamper = str(caller)
         self.stamps[stamp_id] = stamp
 
-    @public.write
-    def cancel(self, stamp_id: str):
-        caller = message.sender_address
-        if stamp_id not in self.stamps:
-            raise gl.vm.UserError("Stamp not found")
-        stamp = self.stamps[stamp_id]
-        if str(stamp.poster) != str(caller):
-            raise gl.vm.UserError("Only poster can cancel")
-        if stamp.state != "PENDING":
-            raise gl.vm.UserError("Not pending")
 
-        # ── Lock-in window check ───────────────────────────────────────────
-        # Cancellation is forbidden within the first LOCK_BLOCKS after posting.
-        # This prevents a poster from escaping accountability by canceling the
-        # moment a challenger appears.
-        elapsed = message.block_number - stamp.posted_at_block
-        if elapsed < LOCK_BLOCKS:
-            raise gl.vm.UserError("Stamp is locked for 10 blocks after posting — cannot cancel yet")
-
-        # ── Expire window check ────────────────────────────────────────────
-        # After EXPIRE_BLOCKS the poster must use expire() instead of cancel().
-        if elapsed >= EXPIRE_BLOCKS:
-            raise gl.vm.UserError("Stamp has expired — use expire() to reclaim bond")
-
-        self._pay(str(caller), stamp.bond)
-
-        stamp.state = "CANCELED"
-        stamp.result_reason = "Canceled by poster"
-        self.stamps[stamp_id] = stamp
 
     @public.write
     def expire(self, stamp_id: str):

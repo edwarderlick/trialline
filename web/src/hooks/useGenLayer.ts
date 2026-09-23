@@ -1,14 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
-import { createTransactionKit, TransactionKit } from "@genlayer/transaction-kit";
+import { useMemo } from "react";
+import { createTransactionKit } from "@genlayer/transaction-kit";
 import { studioDevnet } from "genlayer-js/chains";
 import { useWalletContext } from "../lib/WalletProvider";
 
 export function useGenLayer() {
-  const [kit, setKit] = useState<TransactionKit | null>(null);
   const { account, selectedProvider, chainId } = useWalletContext();
-
-  useEffect(() => {
+  const kit = useMemo(() => {
     let parsedChainId = null;
     if (chainId) {
       parsedChainId = typeof chainId === 'string' && chainId.startsWith('0x') 
@@ -17,16 +15,14 @@ export function useGenLayer() {
     }
     
     if (account && selectedProvider && parsedChainId === 61997) {
-      const tkit = createTransactionKit({
+      return createTransactionKit({
         chain: studioDevnet,
         provider: selectedProvider,
         account: account as `0x${string}`,
         allowUnverified: true
       });
-      setKit(tkit);
-    } else {
-      setKit(null);
     }
+    return null;
   }, [account, selectedProvider, chainId]);
 
   return { kit, address: account };

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { createClient } from "genlayer-js";
 import { studioDevnet } from "genlayer-js/chains";
 
-const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xD2126820CD00A9EFdA72661de417933985ECf9eD";
+const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x0000000000000000000000000000000000000000";
 
 interface StampRecord {
   id: string;
@@ -303,7 +303,7 @@ export default function Page() {
 </div>
 </div>
 <p className="font-body-sm text-body-sm text-on-surface-variant">
-          Triggering this attestation initiates an immediate GenLayer contract query to the NIH ClinicalTrials.gov API endpoint. If the current status differs from poster's claim, escrow bond transfers directly to your address.
+          Triggering this attestation initiates an immediate GenLayer contract query to the NIH ClinicalTrials.gov API endpoint. If the current status differs from poster&apos;s claim, escrow bond transfers directly to your address.
         </p>
 <div className="p-3 bg-surface-container rounded-DEFAULT hidden" id="simulation-status">
 <div className="flex items-center gap-2 text-primary font-label-sm text-label-sm">

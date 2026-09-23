@@ -396,7 +396,7 @@ export default function Page() {
 </div>
 <div className="flex items-center gap-2 text-on-surface-variant font-body-sm text-body-sm">
 <span className="material-symbols-outlined text-[16px] text-[#536233]">check_circle</span>
-<span>Time-independent resolution — no arbitrary block deadline or decay clock</span>
+<span>Bond locked for 200 blocks — fully enforceable by validators</span>
 </div>
 </div>
 
@@ -432,6 +432,7 @@ export default function Page() {
         network="GenLayer Studio Next"
         theme="light"
         userValue={BigInt(Math.floor(parseFloat(bond || "0") * 1e18))}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onDone={(result: any) => {
           console.log("Done!", result);
           const status = result?.statusName || result?.status;
@@ -533,12 +534,12 @@ export default function Page() {
 <span className="font-body-sm text-body-sm text-outline">ModernaTX, Inc. &amp; NIAID</span>
 </div>
 <div className="text-[12px] font-mono p-3 bg-surface-container-high rounded-DEFAULT text-on-surface-variant space-y-1 overflow-x-auto">
-<div className="text-outline">// Parsed JSON payload excerpt</div>
-<div>"protocolSection": {"{"}</div>
-<div className="pl-3">"statusModule": {"{"}</div>
-<div className="pl-6 text-secondary font-semibold">"overallStatus": "COMPLETED",</div>
-<div className="pl-6">"startDateStruct": {"{"} "date": "2020-07" {"}"},</div>
-<div className="pl-6">"completionDateStruct": {"{"} "date": "2022-12" {"}"}</div>
+<div className="text-outline">{/* Parsed JSON payload excerpt */}</div>
+<div>&quot;protocolSection&quot;: {"{"}</div>
+<div className="pl-3">&quot;statusModule&quot;: {"{"}</div>
+<div className="pl-6 text-secondary font-semibold">&quot;overallStatus&quot;: &quot;COMPLETED&quot;,</div>
+<div className="pl-6">&quot;startDateStruct&quot;: {"{"} &quot;date&quot;: &quot;2020-07&quot; {"}"},</div>
+<div className="pl-6">&quot;completionDateStruct&quot;: {"{"} &quot;date&quot;: &quot;2022-12&quot; {"}"}</div>
 <div className="pl-3">{"}"}</div>
 <div>{"}"}</div>
 </div>

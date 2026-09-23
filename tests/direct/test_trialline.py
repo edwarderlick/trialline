@@ -164,65 +164,50 @@ def test_post_stamp_invalid_nct(contract):
     with pytest.raises(Exception, match="Invalid NCT ID format"):
         contract.post_stamp("INVALID123", "COMPLETED", "nonce1")
 
-def test_cancel_stamp_success(contract):
-    # Post at block 100, then cancel at block 115 (past lock window of 10, before expire of 200)
-    gl_mock.message.block_number = 100
-    gl_mock.message.sender_address = "0xPoster"
-    gl_mock.message.value = 1000
-    
-    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce1")
-    
-    gl_mock.message.block_number = 115  # elapsed = 15 > LOCK_BLOCKS(10), < EXPIRE_BLOCKS(200)
-    contract.cancel(stamp_id)
-    
-    # Check balance
-    assert contract.credits.get("0xPoster", 0) == 1000
-    
-    stamp = json.loads(contract.get_stamp(stamp_id))
-    assert stamp["status"] == "CANCELED"
 
-def test_cancel_stamp_unauthorized(contract):
-    gl_mock.message.sender_address = "0xPoster"
-    gl_mock.message.value = 1000
-    
-    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce1")
-    
-    # Try to cancel as someone else
-    gl_mock.message.sender_address = "0xHacker"
-    with pytest.raises(Exception, match="Only poster can cancel"):
-        contract.cancel(stamp_id)
 
 def test_withdraw_success(contract):
     gl_mock.message.sender_address = "0xPoster"
     contract.credits["0xPoster"] = 5000
     
-    with patch.object(contract.__class__, '_pay', autospec=True):
-        # In withdraw we test emit_transfer, so let's mock it to succeed for this test
-        # Actually withdraw calls _Recipient directly, so we just temporarily replace it
-        pass
-    
-    # Let's mock _Recipient to succeed just for this test
-    original_mock = gl_mock.evm.contract_interface
-    
-    def success_mock(cls):
-        def __init__(self, address):
-            self.address = address
-        def emit_transfer(self, value):
-            pass # Success!
-        cls.__init__ = __init__
-        cls.emit_transfer = emit_transfer
-        return cls
-
     from contracts.trialline import _Recipient
-    _Recipient.emit_transfer = lambda self, value: None
+    original_emit = _Recipient.emit_transfer
     
-    contract.withdraw()
+    try:
+        # Mock successful transfer
+        def mock_emit(self, value):
+            self._transfer_called_with_value = value
+            
+        _Recipient.emit_transfer = mock_emit
+        
+        contract.withdraw()
+        
+        # After successful withdrawal, balance should be zero
+        assert contract.credits.get("0xPoster", 0) == 0
+    finally:
+        _Recipient.emit_transfer = original_emit
+
+def test_withdraw_failure_preserves_credit(contract):
+    gl_mock.message.sender_address = "0xPoster"
+    contract.credits["0xPoster"] = 5000
     
-    # After successful withdrawal, balance should be zero
-    assert contract.credits.get("0xPoster", 0) == 0
+    from contracts.trialline import _Recipient
+    original_emit = _Recipient.emit_transfer
     
-    # After successful withdrawal, balance should be zero
-    assert contract.credits.get("0xPoster", 0) == 0
+    try:
+        # Mock failed transfer
+        def mock_emit(self, value):
+            raise Exception("Transfer failed")
+            
+        _Recipient.emit_transfer = mock_emit
+        
+        with pytest.raises(Exception, match="Transfer failed"):
+            contract.withdraw()
+        
+        # After failed withdrawal, balance should be restored to 5000
+        assert contract.credits.get("0xPoster", 0) == 5000
+    finally:
+        _Recipient.emit_transfer = original_emit
 
 def test_withdraw_no_funds(contract):
     gl_mock.message.sender_address = "0xPoorPerson"
@@ -232,34 +217,7 @@ def test_withdraw_no_funds(contract):
 
 # ── Timing & access-control boundary tests ──────────────────────────────────
 
-def test_cancel_during_lockup_fails(contract):
-    """Poster cannot cancel within the first 10 blocks after posting."""
-    gl_mock.message.block_number = 100
-    gl_mock.message.sender_address = "0xPoster"
-    gl_mock.message.value = 1000
-    
-    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce1")
-    
-    # Try to cancel at block 105 — elapsed = 5 < LOCK_BLOCKS(10)
-    gl_mock.message.block_number = 105
-    with pytest.raises(Exception, match="Stamp is locked for 10 blocks after posting"):
-        contract.cancel(stamp_id)
 
-def test_cancel_after_lockup_succeeds(contract):
-    """Poster CAN cancel after the 10-block lock window passes."""
-    gl_mock.message.block_number = 100
-    gl_mock.message.sender_address = "0xPoster"
-    gl_mock.message.value = 2000
-    
-    stamp_id = contract.post_stamp("NCT00000999", "RECRUITING", "nonce_lock")
-    
-    # Cancel at block 111 — elapsed = 11 > LOCK_BLOCKS(10)
-    gl_mock.message.block_number = 111
-    contract.cancel(stamp_id)
-    
-    assert contract.credits.get("0xPoster", 0) == 2000
-    stamp = json.loads(contract.get_stamp(stamp_id))
-    assert stamp["status"] == "CANCELED"
 
 def test_self_resolution_blocked(contract):
     """Poster cannot call match() on their own stamp."""

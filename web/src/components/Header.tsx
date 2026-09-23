@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useWalletContext } from '../lib/WalletProvider';
 
 export function Header() {
-  const { account, chainId, isWrongNetwork, switchNetwork, connect, disconnect, providers } = useWalletContext();
+  const { account, isWrongNetwork, switchNetwork, connect, disconnect, providers } = useWalletContext();
 
   const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
