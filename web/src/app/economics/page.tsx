@@ -10,7 +10,7 @@ export default function Page() {
     credits_outstanding: "0"
   });
   const [loading, setLoading] = useState(true);
-  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xC722dA37687955dB6aDDb18bABAA6e092C92e0FF";
+  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xD84133C446fa5872e3Fb9Ded0B3c1061D302B661";
 
   useEffect(() => {
     async function fetchEconomics() {

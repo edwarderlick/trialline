@@ -8,12 +8,12 @@ export default function Page() {
   const [step, setStep] = useState(1);
   const [nct, setNct] = useState("NCT04470427");
   const [status, setStatus] = useState("COMPLETED");
-  const [bond, setBond] = useState("5.00");
+  const bond = "5.00";
   const [txSuccess, setTxSuccess] = useState(false);
   const { kit, address } = useGenLayer();
   const [nonce, setNonce] = useState("");
   useEffect(() => { setNonce(Math.random().toString(36).substring(2, 15)); }, []);
-  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xC722dA37687955dB6aDDb18bABAA6e092C92e0FF";
+  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xD84133C446fa5872e3Fb9Ded0B3c1061D302B661";
   const isValidNct = /^NCT\d{8}$/i.test(nct);
 
   return (
@@ -250,7 +250,7 @@ export default function Page() {
 </div>
 <div className="flex items-center gap-3">
 <div className="relative flex-grow">
-<input suppressHydrationWarning className="w-full pl-4 pr-24 py-3 bg-surface-container font-label-md text-[16px] text-on-surface outline-none rounded-DEFAULT border border-outline-variant/30 focus:border-primary transition-colors" type="number" min="0.1" step="0.1" value={bond} onChange={(e) => setBond(e.target.value)} />
+<input suppressHydrationWarning className="w-full pl-4 pr-24 py-3 bg-surface-container font-label-md text-[16px] text-on-surface outline-none rounded-DEFAULT border border-outline-variant/30" type="text" readOnly value="5.00" />
 <span className="absolute right-4 top-1/2 -translate-y-1/2 font-label-md text-label-md text-outline uppercase">test GEN</span>
 </div>
 <div className="px-3 py-3 bg-surface-container-high rounded-DEFAULT text-on-surface-variant font-label-sm text-label-sm uppercase font-semibold">
@@ -397,7 +397,7 @@ export default function Page() {
 </div>
 <div className="flex items-center gap-2 text-on-surface-variant font-body-sm text-body-sm">
 <span className="material-symbols-outlined text-[16px] text-[#536233]">check_circle</span>
-<span>Bond reclaimable manually by poster if unchallenged — fully enforceable by validators</span>
+<span>Bond stays locked for 10 minutes. Cancel and expire are rejected until that window closes.</span>
 </div>
 </div>
 
@@ -448,6 +448,7 @@ export default function Page() {
             console.error("Transaction failed execution:", result, result instanceof Error ? result.message : JSON.stringify(result, Object.getOwnPropertyNames(result)));
           }
         }}
+        userValue={BigInt("5000000000000000000")}
         tx={{
           kind: 'write',
           address: contractAddress as `0x${string}`,

@@ -12,7 +12,7 @@ export default function Page() {
   const [isStamping, setIsStamping] = useState(false);
   const [isExpiring, setIsExpiring] = useState(false);
   const { kit, address } = useGenLayer();
-  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xC722dA37687955dB6aDDb18bABAA6e092C92e0FF";
+  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xD84133C446fa5872e3Fb9Ded0B3c1061D302B661";
 
   interface Stamp {
     id: string;
@@ -25,12 +25,13 @@ export default function Page() {
     status: string;
     result_overall_status: string;
     result_reason: string;
-    posted_at_block: string;
-    expire_at_block: string;
+    posted_at_unix: string;
+    expires_at_unix: string;
   }
 
   const [stamp, setStamp] = useState<Stamp | null>(null);
   const [loading, setLoading] = useState(true);
+  const [nowMs, setNowMs] = useState<number | null>(null);
 
   useEffect(() => {
     async function fetchStamp() {
@@ -61,6 +62,10 @@ export default function Page() {
     }
   }, [id, contractAddress]);
 
+  useEffect(() => {
+    setNowMs(Date.now());
+  }, []);
+
   if (loading) {
     return <div className="p-8 text-center text-outline">Loading registry record...</div>;
   }
@@ -75,7 +80,17 @@ export default function Page() {
     );
   }
 
-  const bondValue = Number(stamp.value).toFixed(2);
+  const bondWei = BigInt(stamp.value || "0");
+  const oneGen = BigInt("1000000000000000000");
+  const bondWhole = bondWei / oneGen;
+  const bondFrac = (bondWei % oneGen) / (oneGen / BigInt(100));
+  const bondValue = `${bondWhole}.${bondFrac.toString().padStart(2, "0")}`;
+  const expiresMs = Number(stamp.expires_at_unix || "0") * 1000;
+  const windowOpen = nowMs === null || !expiresMs || nowMs < expiresMs;
+  const isPoster = address?.toLowerCase() === stamp.poster.toLowerCase();
+  const expiresLabel = expiresMs
+    ? new Date(expiresMs).toISOString().replace(".000Z", "Z")
+    : "Unknown";
 
   return (
     <>
@@ -162,8 +177,8 @@ export default function Page() {
                   {stamp.status === "PENDING" && (
                     <div className="flex gap-4 mt-2">
                       <div className="bg-surface-container px-3 py-1.5 rounded-DEFAULT">
-                        <span className="text-[10px] text-outline uppercase block">Expiration</span>
-                        <span className="text-label-sm font-semibold">Manual (Poster Only)</span>
+                        <span className="text-[10px] text-outline uppercase block">Challenge closes</span>
+                        <span className="text-label-sm font-semibold">{expiresLabel}</span>
                       </div>
                     </div>
                   )}
@@ -181,20 +196,24 @@ export default function Page() {
                         </span>
                       </div>
                       <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-                        Open for challengers. The original poster may manually expire this stamp to claim a full refund if unchallenged.
+                        {windowOpen
+                          ? "Open for challengers. The poster cannot cancel or expire this bond until the challenge window closes."
+                          : "The challenge window has closed. Expire returns the original bond to the poster."}
                       </p>
                     </div>
                     <div className="flex items-center gap-2.5 shrink-0">
                       {!isStamping && !isExpiring ? (
                         <>
-                          <button onClick={() => setIsStamping(true)} className="px-5 py-2.5 rounded-DEFAULT bg-primary hover:bg-primary-container text-on-primary font-label-lg text-label-lg tracking-wider uppercase transition-all shadow-sm flex items-center gap-2">
-                            <span className="material-symbols-outlined text-[18px]">verified</span>
-                            <span>Stamp Now</span>
-                          </button>
-                          {address?.toLowerCase() === stamp.poster.toLowerCase() && (
-                            <button onClick={() => setIsExpiring(true)} className="px-4 py-2.5 rounded-DEFAULT bg-surface-container-low hover:bg-surface-container hover:text-error text-on-surface-variant font-label-md text-label-md tracking-wider uppercase transition-all border border-outline-variant flex items-center gap-1.5">
+                          {!isPoster && (
+                            <button onClick={() => setIsStamping(true)} className="px-5 py-2.5 rounded-DEFAULT bg-primary hover:bg-primary-container text-on-primary font-label-lg text-label-lg tracking-wider uppercase transition-all shadow-sm flex items-center gap-2">
+                              <span className="material-symbols-outlined text-[18px]">verified</span>
+                              <span>Stamp Now</span>
+                            </button>
+                          )}
+                          {isPoster && (
+                            <button onClick={() => setIsExpiring(true)} disabled={windowOpen} className="px-4 py-2.5 rounded-DEFAULT bg-surface-container-low text-on-surface-variant font-label-md text-label-md tracking-wider uppercase transition-all border border-outline-variant flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
                               <span className="material-symbols-outlined text-[16px]">hourglass_bottom</span>
-                              <span>Expire</span>
+                              <span>{windowOpen ? "Locked until close" : "Expire"}</span>
                             </button>
                           )}
                         </>
@@ -339,7 +358,7 @@ export default function Page() {
                       </span>
                     </div>
                     <p className="font-body-sm text-[12px] text-on-surface-variant mt-1 leading-tight">
-                      Unchallenged stamps can be manually expired by the poster for a 100% refund.
+                      After the 10-minute window, an unchallenged stamp refunds the original bond to the poster. Expire is rejected before that.
                     </p>
                   </div>
                 </div>

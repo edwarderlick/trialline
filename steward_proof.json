@@ -1,0 +1,25 @@
+{
+  "cancelTx": "0xae06cbfcf70b3ba8bbf31fc31133002bdea5ae89b601f96800d89c41a0fa0e17",
+  "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xae06cbfcf70b3ba8bbf31fc31133002bdea5ae89b601f96800d89c41a0fa0e17",
+  "status": 5,
+  "execution": "ERROR",
+  "revertPayload": "Cancel cannot bypass an open challenge",
+  "postTx": "0xccd58fe2fb8f91149f03d986a05b93908adb82f0dbf7bfe5f77d255fef324711",
+  "deployTx": "0x8993743ee1273717fb49518263f64f3e0c78adfd1087980e0ed4b2290e0b5814",
+  "contract": "0xD84133C446fa5872e3Fb9Ded0B3c1061D302B661",
+  "stampAfter": {
+    "id": "d7e7b9fedc997a54845c47450116b1bd25fe77b3ce1fc727cb5e4c77358bdf33",
+    "poster": "0xAb7825c38004bfA83c88dFCf1279fDe9B4bAC36c",
+    "nct": "NCT04470427",
+    "expected_status": "COMPLETED",
+    "value": "1000",
+    "status": "PENDING",
+    "stamper": "",
+    "result_overall_status": "",
+    "result_reason": "",
+    "posted_at_unix": "1790177366",
+    "expires_at_unix": "1790177966",
+    "challenge_window_seconds": 600
+  },
+  "posterCredit": "0"
+}

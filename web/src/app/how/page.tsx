@@ -348,13 +348,13 @@ export default function Page() {
                   </span>
 </td>
 <td className="py-4 px-5 text-on-surface">
-                  Poster initiates voluntary cancellation while the stamp entry remains in the <span className="font-medium">OPEN</span> state.
+                  <span className="font-medium">cancel()</span> during the 10-minute challenge window, or after it.
                 </td>
 <td className="py-4 px-5 text-on-surface-variant font-body-sm text-body-sm">
-<span className="text-primary font-medium">100% refund</span> returned immediately to origin poster. Available only prior to any counterparty stamp invocation.
+                  Rejected. The call reverts and the bond stays locked. A poster cannot use cancellation to get ahead of a challenge. After 10 minutes, <span className="font-medium">expire()</span> refunds an unchallenged bond.
                 </td>
 <td className="py-4 px-5 text-right font-label-md text-label-md font-semibold text-on-surface">
-                  100% Refund
+                  No refund
                 </td>
 </tr>
 </tbody>

@@ -1,0 +1,10 @@
+{
+  "deployer": "0xAb7825c38004bfA83c88dFCf1279fDe9B4bAC36c",
+  "tx": "0x8993743ee1273717fb49518263f64f3e0c78adfd1087980e0ed4b2290e0b5814",
+  "contract": "0xD84133C446fa5872e3Fb9Ded0B3c1061D302B661",
+  "status": 5,
+  "execution": "SUCCESS",
+  "rules": "{\"challenge_window_seconds\": 600, \"protocol_fee_bps\": 25}",
+  "explorerTx": "https://explorer-studio-dev.genlayer.com/tx/0x8993743ee1273717fb49518263f64f3e0c78adfd1087980e0ed4b2290e0b5814",
+  "explorerAddress": "https://explorer-studio-dev.genlayer.com/address/0xD84133C446fa5872e3Fb9Ded0B3c1061D302B661"
+}

@@ -231,7 +231,7 @@ export default function Page() {
 <div className="font-label-sm text-[11px] uppercase tracking-wider text-outline font-semibold">Execution Speed</div>
 <h3 className="font-headline-sm text-headline-sm text-primary font-medium">Single-Session Settlement</h3>
 <p className="font-body-md text-body-md text-on-surface-variant">
-            Evaluates directly through the GenLayer consensus network. Once posted, claims enter a 200-block challenge window where anyone can verify the result.
+            Evaluates directly through the GenLayer consensus network. Once posted, the bond stays locked for 10 minutes. The poster cannot cancel or expire it during that window.
           </p>
 </div>
 <div className="bg-surface-container-lowest p-3 rounded-DEFAULT font-label-sm text-[11px] text-on-surface flex items-center gap-2">

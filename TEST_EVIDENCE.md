@@ -1,58 +1,48 @@
-# TrialLine Test Evidence (GenLayer Resubmission)
+# TrialLine Test Evidence
 
-This document contains test output and validation for the new expiration-based lifecycle, self-resolution guards, and withdrawal limits built into TrialLine's intelligent contract.
+Ran against the GenLayer direct runner, which loads `contracts/trialline.py` and executes the contract methods. This is not a mock of the contract module. NIH HTTP responses are mocked. A live Studio consensus run was not executed in this pass.
 
-## 1. Manual Expiry Validation
+Command:
 
-The `expire()` function is the sole fallback for reclaiming un-challenged bonds. Due to block numbers being inaccessible in GenVM, this function is accessible **only** by the original poster.
-
-```python
-tests/direct/test_trialline.py::test_expire_fails_for_non_poster PASSED
-tests/direct/test_trialline.py::test_expire_succeeds_for_poster PASSED
+```bash
+pytest tests/direct/test_trialline.py -v
 ```
 
-## 2. Poster Self-Resolution Guard
-
-Posters cannot challenge their own stamps using `match()`. This enforces market risk and prevents posters from self-recovering false claims before the expiry window.
-
-```python
-tests/direct/test_trialline.py::test_self_resolution_blocked PASSED
-```
-
-## 3. Payout and Balance Integrity (Transfer Failures)
-
-Bonds are now allocated to an internal ledger (`self.credits`) instead of executing native transfers immediately during `match()`. This ensures that execution boundaries are maintained even if a user is unable to receive native tokens directly during contract resolution. The user must manually invoke `withdraw()` to pull funds.
-
-```python
-tests/direct/test_trialline.py::test_withdraw_success PASSED
-tests/direct/test_trialline.py::test_withdraw_failure_preserves_credit PASSED
-tests/direct/test_trialline.py::test_withdraw_no_funds PASSED
-```
-
-## 4. Overall Pipeline Completion
-
-All 11 tests executed across the `localnet` state transition bounds pass cleanly:
+Result: **9 passed in 3.22s**.
 
 ```text
-tests/direct/test_trialline.py::test_post_stamp_unique_hashes PASSED     [  9%]
-tests/direct/test_trialline.py::test_match PASSED                        [ 18%]
-tests/direct/test_trialline.py::test_miss PASSED                         [ 27%]
-tests/direct/test_trialline.py::test_thin PASSED                         [ 36%]
-tests/direct/test_trialline.py::test_post_stamp_invalid_nct PASSED       [ 45%]
-tests/direct/test_trialline.py::test_withdraw_success PASSED             [ 54%]
-tests/direct/test_trialline.py::test_withdraw_failure_preserves_credit PASSED [ 63%]
-tests/direct/test_trialline.py::test_withdraw_no_funds PASSED            [ 72%]
-tests/direct/test_trialline.py::test_self_resolution_blocked PASSED      [ 81%]
-tests/direct/test_trialline.py::test_expire_after_window PASSED          [ 90%]
-tests/direct/test_trialline.py::test_expire_before_window_fails PASSED   [100%]
-
-============================= 11 passed in 0.06s ==============================
+tests/direct/test_trialline.py::test_post_locks_attached_bond_and_does_not_mint PASSED
+tests/direct/test_trialline.py::test_post_rejects_zero_bond PASSED
+tests/direct/test_trialline.py::test_post_rejects_bad_nct_and_status PASSED
+tests/direct/test_trialline.py::test_self_resolve_cancel_and_expire_cannot_release_bond_during_window PASSED
+tests/direct/test_trialline.py::test_match_pays_poster_minus_fee_from_locked_bond PASSED
+tests/direct/test_trialline.py::test_miss_pays_challenger_the_full_locked_bond PASSED
+tests/direct/test_trialline.py::test_thin_refunds_poster_the_original_bond PASSED
+tests/direct/test_trialline.py::test_window_boundary_blocks_match_and_expire_refunds_exact_bond PASSED
+tests/direct/test_trialline.py::test_withdraw_pays_the_credited_bond PASSED
 ```
 
-## 5. Deployment Evidence
+What those tests lock in:
 
-The fully patched contract has been deployed to GenLayer Studio Devnet at:
+- `post_stamp` with `message.value = 1000` locks 1000. The poster and challenger credits stay 0 while the stamp is `PENDING`.
+- `message.value = 0` reverts with `Bond required`.
+- Inside the 600 second window, poster `match()` reverts with `Poster cannot self-resolve`.
+- Inside the window, poster `cancel()` reverts with `Cancel cannot bypass an open challenge`.
+- Inside the window, `expire()` reverts with `Challenge window still open`.
+- A third party cannot `cancel()`.
+- None of those reverts move the bond.
+- At 599 seconds the window is still open. At 600 seconds `match()` and `cancel()` revert, and `expire()` credits the poster exactly 1000.
+- MATCH credits the poster 975 and the treasury 25. MISS credits the challenger 1000. THIN credits the poster 1000.
+- `withdraw()` after expire sends the credited 1000 and leaves the balance at 0.
 
-- **Network:** GenLayer Studio Next (chainId: 61997)
-- **Contract Address:** `0x9c97c2e09E9d1Dc52A8C3FaDA2A889cfBe960a57`
-- **Deploy TX Hash:** `0x2c2f3a4ca411f235d10158a0048d41d98cd95684a05f7f784d6f75500826c734`
+## On-chain proof (Studio Devnet, chain 61997)
+
+| Check | Result |
+|---|---|
+| Deploy | [`0x8993743e…5814`](https://explorer-studio-dev.genlayer.com/tx/0x8993743ee1273717fb49518263f64f3e0c78adfd1087980e0ed4b2290e0b5814) `FINALIZED`, leader `SUCCESS` |
+| Contract | [`0xD84133C446fa5872e3Fb9Ded0B3c1061D302B661`](https://explorer-studio-dev.genlayer.com/address/0xD84133C446fa5872e3Fb9Ded0B3c1061D302B661) |
+| `get_rules()` | `{"challenge_window_seconds": 600, "protocol_fee_bps": 25}` |
+| Post | [`0xccd58fe2…4711`](https://explorer-studio-dev.genlayer.com/tx/0xccd58fe2fb8f91149f03d986a05b93908adb82f0dbf7bfe5f77d255fef324711) locked bond `1000` on `NCT04470427` / `COMPLETED` |
+| Window stored | `expires_at_unix - posted_at_unix = 600`. State stayed `PENDING` |
+| Poster cancel | [`0xae06cbfc…0e17`](https://explorer-studio-dev.genlayer.com/tx/0xae06cbfcf70b3ba8bbf31fc31133002bdea5ae89b601f96800d89c41a0fa0e17) execution `ERROR`, payload `Cancel cannot bypass an open challenge` |
+| After that cancel | Stamp still `PENDING`. Poster `get_credit` still `0` |

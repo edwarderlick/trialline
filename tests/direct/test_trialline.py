@@ -1,211 +1,210 @@
-import pytest
-from unittest.mock import patch, MagicMock
-import sys
 import json
+import sys
 
-# Mock genlayer environment
-gl_mock = MagicMock()
-gl_mock.u256 = int
-gl_mock.Address = str
-gl_mock.message = MagicMock()
-gl_mock.message.block_number = 100
-gl_mock.message.sender_address = "0xOwner"
-gl_mock.message.value = 0
+import pytest
 
-class HashMapMock(dict):
-    def get(self, key, default=None):
-        return super().get(key, default)
 
-gl_mock.HashMap = HashMapMock
-gl_mock.storage = MagicMock()
-gl_mock.storage.TreeMap = HashMapMock
+def _drop_stub_genlayer():
+    """The PyPI `genlayer` package is an empty stub and shadows the SDK."""
+    for name in list(sys.modules):
+        if name == "genlayer" or name.startswith("genlayer."):
+            del sys.modules[name]
 
-def passthrough(func_or_cls):
-    return func_or_cls
+BOND = 1000
+T0 = "2026-01-01T00:00:00Z"
+T_OPEN = "2026-01-01T00:09:59Z"
+T_CLOSED = "2026-01-01T00:10:00Z"
+NIH = {
+    "protocolSection": {
+        "statusModule": {"overallStatus": "COMPLETED"},
+        "identificationModule": {"briefTitle": "Example"},
+    }
+}
 
-def contract_interface_mock(cls):
-    def __init__(self, address):
-        self.address = address
-    def emit_transfer(self, value):
-        raise Exception("Mock: fallback to credits")
-    cls.__init__ = __init__
-    cls.emit_transfer = emit_transfer
-    return cls
 
-gl_mock.contract = MagicMock()
-gl_mock.contract.Contract = object
-gl_mock.evm = MagicMock()
-gl_mock.evm.contract_interface = contract_interface_mock
-gl_mock.public = MagicMock()
-gl_mock.public.write = passthrough
-gl_mock.public.write.payable = passthrough
-gl_mock.public.view = passthrough
-gl_mock.public.payable = passthrough
-gl_mock.vm = MagicMock()
-gl_mock.vm.UserError = Exception
-gl_mock.eq_principle = MagicMock()
+def set_tx_time(direct_vm, iso: str):
+    direct_vm.warp(iso)
+    import genlayer.message as msg
 
-sys.modules['genlayer'] = gl_mock
-sys.modules['genlayer.std'] = gl_mock
-gl_mock.storage.allow = passthrough
-sys.modules['genlayer.storage'] = gl_mock.storage
+    msg.datetime = iso
+    raw = getattr(msg, "raw", None)
+    if isinstance(raw, dict):
+        raw["datetime"] = iso
+
+
+def account_key(account) -> str:
+    if hasattr(account, "as_hex"):
+        return account.as_hex
+    if isinstance(account, (bytes, bytearray)):
+        return "0x" + bytes(account).hex()
+    return str(account)
+
+
+def credit_of(contract, account) -> int:
+    return int(contract.get_credit(account_key(account)))
+
+
+def economics(contract) -> dict:
+    return json.loads(contract.get_economics())
+
+
+def post(contract, direct_vm, sender, nct="NCT00000123", status="COMPLETED", nonce="n1", value=BOND):
+    direct_vm.sender = sender
+    direct_vm.value = value
+    return contract.post_stamp(nct, status, nonce)
 
 
 @pytest.fixture
-def contract():
-    gl_mock.message.sender_address = "0xOwner"
-    gl_mock.message.value = 0
-    gl_mock.message.block_number = 100
-
-    import importlib
-    import contracts.trialline as tl_mod
-    importlib.reload(tl_mod)
-    TrialLine = tl_mod.TrialLine
-
-    c = TrialLine.__new__(TrialLine)
-    c.config = HashMapMock()
-    c.stamps = HashMapMock()
-    c.credits = HashMapMock()
-    c.__init__()
-    return c
+def env(direct_vm, direct_deploy, direct_alice, direct_bob):
+    direct_vm.value = 0
+    direct_vm.warp(T0)
+    _drop_stub_genlayer()
+    contract = direct_deploy("contracts/trialline.py")
+    set_tx_time(direct_vm, T0)
+    return contract, direct_vm, direct_alice, direct_bob
 
 
-def test_post_stamp_unique_hashes(contract):
-    gl_mock.message.sender_address = "0xPoster"
-    hashes = set()
-    for i in range(5):
-        stamp_id = contract.post_stamp("NCT00000001", "COMPLETED", f"nonce{i}")
-        hashes.add(stamp_id)
-    assert len(hashes) == 5
+def test_post_locks_attached_bond_and_does_not_mint(env):
+    contract, vm, alice, bob = env
+    stamp_id = post(contract, vm, alice)
+
+    assert credit_of(contract, alice) == 0
+    assert credit_of(contract, bob) == 0
+    econ = economics(contract)
+    assert econ["locked_in_open"] == str(BOND)
+    assert econ["credits_outstanding"] == "0"
+
+    stamp = json.loads(contract.get_stamp(stamp_id))
+    assert stamp["status"] == "PENDING"
+    assert stamp["value"] == str(BOND)
+    assert stamp["expected_status"] == "COMPLETED"
+    assert int(stamp["expires_at_unix"]) - int(stamp["posted_at_unix"]) == 600
 
 
-def test_match(contract):
-    gl_mock.message.sender_address = "0xPoster"
-    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce1")
+def test_post_rejects_zero_bond(env):
+    contract, vm, alice, _bob = env
+    with vm.expect_revert("Bond required"):
+        post(contract, vm, alice, value=0)
 
-    gl_mock.message.sender_address = "0xStamper"
-    with patch.object(gl_mock.eq_principle, 'strict_eq') as mock_eq:
-        mock_eq.return_value = json.dumps({"kind": "OK", "status": "COMPLETED"})
+
+def test_post_rejects_bad_nct_and_status(env):
+    contract, vm, alice, _bob = env
+    with vm.expect_revert("Invalid NCT ID format"):
+        post(contract, vm, alice, nct="NOT_AN_NCT")
+    with vm.expect_revert("Invalid status"):
+        post(contract, vm, alice, status="UNKNOWN_STATUS", nonce="n2")
+
+
+def test_self_resolve_cancel_and_expire_cannot_release_bond_during_window(env):
+    contract, vm, alice, bob = env
+    stamp_id = post(contract, vm, alice)
+    set_tx_time(vm, T_OPEN)
+
+    vm.sender = alice
+    vm.mock_web(r"clinicaltrials\.gov", {"status": 200, "body": json.dumps(NIH)})
+    with vm.expect_revert("Poster cannot self-resolve"):
         contract.match(stamp_id)
+    with vm.expect_revert("Cancel cannot bypass an open challenge"):
+        contract.cancel(stamp_id)
+    with vm.expect_revert("Challenge window still open"):
+        contract.expire(stamp_id)
 
-    # FIXED_BOND=1000, fee=25, poster_share=975
-    assert contract.credits.get("0xOwner", 0) == 25
-    assert contract.credits.get("0xPoster", 0) == 975
+    vm.sender = bob
+    with vm.expect_revert("Only poster can cancel"):
+        contract.cancel(stamp_id)
+
+    assert credit_of(contract, alice) == 0
+    assert json.loads(contract.get_stamp(stamp_id))["status"] == "PENDING"
+    assert economics(contract)["locked_in_open"] == str(BOND)
+
+
+def test_match_pays_poster_minus_fee_from_locked_bond(env):
+    contract, vm, alice, bob = env
+    stamp_id = post(contract, vm, alice)
+    set_tx_time(vm, T_OPEN)
+    vm.sender = bob
+    vm.mock_web(r"clinicaltrials\.gov", {"status": 200, "body": json.dumps(NIH)})
+
+    contract.match(stamp_id)
+
+    assert credit_of(contract, alice) == 975
+    assert credit_of(contract, bob) == 0
+    econ = economics(contract)
+    assert econ["treasury"] == "25"
+    assert econ["locked_in_open"] == "0"
+    assert econ["credits_outstanding"] == "1000"
     stamp = json.loads(contract.get_stamp(stamp_id))
     assert stamp["status"] == "MATCH"
+    assert stamp["result_overall_status"] == "COMPLETED"
 
 
-def test_miss(contract):
-    gl_mock.message.sender_address = "0xPoster"
-    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce1")
+def test_miss_pays_challenger_the_full_locked_bond(env):
+    contract, vm, alice, bob = env
+    stamp_id = post(contract, vm, alice, status="RECRUITING", nonce="miss")
+    set_tx_time(vm, T_OPEN)
+    vm.sender = bob
+    vm.mock_web(r"clinicaltrials\.gov", {"status": 200, "body": json.dumps(NIH)})
 
-    gl_mock.message.sender_address = "0xStamper"
-    with patch.object(gl_mock.eq_principle, 'strict_eq') as mock_eq:
-        mock_eq.return_value = json.dumps({"kind": "OK", "status": "RECRUITING"})
+    contract.match(stamp_id)
+
+    assert credit_of(contract, alice) == 0
+    assert credit_of(contract, bob) == BOND
+    assert economics(contract)["locked_in_open"] == "0"
+    assert json.loads(contract.get_stamp(stamp_id))["status"] == "MISS"
+
+
+def test_thin_refunds_poster_the_original_bond(env):
+    contract, vm, alice, bob = env
+    stamp_id = post(contract, vm, alice, nonce="thin")
+    set_tx_time(vm, T_OPEN)
+    vm.sender = bob
+    vm.mock_web(r"clinicaltrials\.gov", {"status": 200, "body": "{}"})
+
+    contract.match(stamp_id)
+
+    assert credit_of(contract, alice) == BOND
+    assert credit_of(contract, bob) == 0
+    assert json.loads(contract.get_stamp(stamp_id))["status"] == "THIN"
+
+
+def test_window_boundary_blocks_match_and_expire_refunds_exact_bond(env):
+    contract, vm, alice, bob = env
+    stamp_id = post(contract, vm, alice, nonce="late")
+    set_tx_time(vm, T_CLOSED)
+
+    vm.sender = bob
+    vm.mock_web(r"clinicaltrials\.gov", {"status": 200, "body": json.dumps(NIH)})
+    with vm.expect_revert("Challenge window closed — use expire()"):
         contract.match(stamp_id)
 
-    assert contract.credits.get("0xPoster", 0) == 0
-    assert contract.credits.get("0xStamper", 0) == 1000
-    stamp = json.loads(contract.get_stamp(stamp_id))
-    assert stamp["status"] == "MISS"
+    vm.sender = alice
+    with vm.expect_revert("Challenge window closed — use expire()"):
+        contract.cancel(stamp_id)
 
-
-def test_thin(contract):
-    gl_mock.message.sender_address = "0xPoster"
-    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce1")
-
-    gl_mock.message.sender_address = "0xStamper"
-    with patch.object(gl_mock.eq_principle, 'strict_eq') as mock_eq:
-        mock_eq.return_value = json.dumps({"kind": "THIN", "reason": "404"})
-        contract.match(stamp_id)
-
-    assert contract.credits.get("0xPoster", 0) == 1000
-    stamp = json.loads(contract.get_stamp(stamp_id))
-    assert stamp["status"] == "THIN"
-
-
-def test_post_stamp_invalid_nct(contract):
-    gl_mock.message.sender_address = "0xPoster"
-    with pytest.raises(Exception, match="Invalid NCT ID format"):
-        contract.post_stamp("INVALID123", "COMPLETED", "nonce1")
-
-
-def test_post_stamp_invalid_status(contract):
-    gl_mock.message.sender_address = "0xPoster"
-    with pytest.raises(Exception, match="Invalid status"):
-        contract.post_stamp("NCT00000001", "UNKNOWN_STATUS", "nonce1")
-
-
-def test_post_stamp_empty_nonce(contract):
-    gl_mock.message.sender_address = "0xPoster"
-    with pytest.raises(Exception, match="Nonce required"):
-        contract.post_stamp("NCT00000001", "COMPLETED", "")
-
-
-def test_withdraw_success(contract):
-    gl_mock.message.sender_address = "0xPoster"
-    contract.credits["0xPoster"] = 5000
-
-    from contracts.trialline import _Recipient
-    original = _Recipient.emit_transfer
-    try:
-        _Recipient.emit_transfer = lambda self, value: None  # success
-        contract.withdraw()
-        assert contract.credits.get("0xPoster", 0) == 0
-    finally:
-        _Recipient.emit_transfer = original
-
-
-def test_withdraw_failure_preserves_credit(contract):
-    gl_mock.message.sender_address = "0xPoster"
-    contract.credits["0xPoster"] = 5000
-
-    from contracts.trialline import _Recipient
-    original = _Recipient.emit_transfer
-    try:
-        def fail(self, value): raise Exception("Transfer failed")
-        _Recipient.emit_transfer = fail
-        with pytest.raises(Exception, match="Transfer failed"):
-            contract.withdraw()
-        assert contract.credits.get("0xPoster", 0) == 5000
-    finally:
-        _Recipient.emit_transfer = original
-
-
-def test_withdraw_no_funds(contract):
-    gl_mock.message.sender_address = "0xBroke"
-    with pytest.raises(Exception, match="No credits"):
-        contract.withdraw()
-
-
-def test_self_resolution_blocked(contract):
-    gl_mock.message.block_number = 100
-    gl_mock.message.sender_address = "0xPoster"
-    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce_self")
-
-    with patch.object(gl_mock.eq_principle, 'strict_eq') as mock_eq:
-        mock_eq.return_value = json.dumps({"kind": "OK", "status": "COMPLETED"})
-        with pytest.raises(Exception, match="Poster cannot self-resolve"):
-            contract.match(stamp_id)
-
-
-def test_expire_succeeds_for_poster(contract):
-    gl_mock.message.sender_address = "0xPoster"
-    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce_expire")
-
-    # Poster can expire
+    assert credit_of(contract, alice) == 0
     contract.expire(stamp_id)
 
-    assert contract.credits.get("0xPoster", 0) == 1000
+    assert credit_of(contract, alice) == BOND
+    assert economics(contract)["locked_in_open"] == "0"
+    assert economics(contract)["credits_outstanding"] == str(BOND)
     stamp = json.loads(contract.get_stamp(stamp_id))
     assert stamp["status"] == "EXPIRED"
 
-
-def test_expire_fails_for_non_poster(contract):
-    gl_mock.message.sender_address = "0xPoster"
-    stamp_id = contract.post_stamp("NCT00000123", "COMPLETED", "nonce_early")
-
-    # Non-poster cannot expire
-    gl_mock.message.sender_address = "0xAnyone"
-    with pytest.raises(Exception, match="Only poster can expire stamps manually"):
+    with vm.expect_revert("Not pending"):
         contract.expire(stamp_id)
+
+
+def test_withdraw_pays_the_credited_bond(env):
+    contract, vm, alice, bob = env
+    stamp_id = post(contract, vm, alice, nonce="wd")
+    set_tx_time(vm, T_CLOSED)
+    vm.sender = alice
+    contract.expire(stamp_id)
+    assert credit_of(contract, alice) == BOND
+
+    contract.withdraw()
+    assert credit_of(contract, alice) == 0
+
+    vm.sender = bob
+    with vm.expect_revert("No credits"):
+        contract.withdraw()
