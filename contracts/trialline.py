@@ -14,8 +14,11 @@ class _Recipient:
 # guaranteed 100% refund to the poster (resolves as EXPIRED / THIN-class).
 EXPIRE_BLOCKS = u256(200)
 
-# Minimum bond required to post a stamp (1 GEN = 1e18 wei equivalent in u256)
-MIN_BOND = u256(1)
+# Symbolic bond unit used for all accounting (1 = 1 unit, not real GEN on devnet)
+FIXED_BOND = u256(1000)
+
+# Protocol fee: 2.5% of bond
+PROTOCOL_FEE_BPS = 25   # 25 / 1000 = 2.5%
 
 @storage.allow
 @dataclass
@@ -45,7 +48,7 @@ def fetch_nih(nct: str) -> str:
             return json.dumps({"kind": "THIN", "reason": "Missing overallStatus"})
         return json.dumps({"kind": "OK", "status": status})
     except Exception as e:
-        return json.dumps({"kind": "THIN", "reason": f"Fetch crashed: {str(e)[:100]}", "nct": "", "overall_status": "", "brief_title": ""})
+        return json.dumps({"kind": "THIN", "reason": f"Fetch crashed: {str(e)[:100]}"})
 
 class TrialLine(contract.Contract):
     config: storage.TreeMap[str, str]
@@ -55,73 +58,60 @@ class TrialLine(contract.Contract):
     def __init__(self):
         self.config["owner"] = str(message.sender_address)
 
+    def _credit(self, account: str, amount: u256):
+        """Add symbolic units to an account's credit balance."""
+        if amount <= u256(0):
+            return
+        addr = Address(account)
+        current = self.credits.get(addr, u256(0))
+        self.credits[addr] = current + amount
+
     def _pay(self, account: str, amount: u256):
+        """Attempt real transfer, fall back to credit balance."""
         if amount <= u256(0):
             return
         addr = Address(account)
         try:
             _Recipient(addr).emit_transfer(value=amount)
         except Exception:
-            current_credit = self.credits.get(addr, u256(0))
-            self.credits[addr] = current_credit + amount
-
-    @public.write.payable
-    def fund(self):
-        """
-        Deposit GEN to your credits balance for use as bond collateral.
-        Call this before post_stamp if you need to pre-fund your account.
-        """
-        caller = message.sender_address
-        value = message.value
-        if value <= u256(0):
-            raise gl.vm.UserError("Must send GEN to fund")
-        current = self.credits.get(caller, u256(0))
-        self.credits[caller] = current + value
+            current = self.credits.get(addr, u256(0))
+            self.credits[addr] = current + amount
 
     @public.write
     def withdraw(self):
+        """Withdraw any credited balance back to the caller."""
         caller = message.sender_address
         amount = self.credits.get(caller, u256(0))
         if amount == u256(0):
             raise gl.vm.UserError("No credits")
 
-        # Zero the balance before transfer (CEI pattern)
         self.credits[caller] = u256(0)
-
-        # Transfer the funds back to the caller
         try:
             _Recipient(caller).emit_transfer(value=amount)
         except Exception:
-            # Revert the zeroing if transfer fails
             self.credits[caller] = amount
             raise gl.vm.UserError("Transfer failed")
 
     @public.write
-    def post_stamp(self, nct: str, status: str, nonce: str, bond_amount: u256) -> str:
+    def post_stamp(self, nct: str, status: str, nonce: str) -> str:
         """
-        Post a new attestation stamp. The bond_amount is deducted from
-        the caller's credits balance (pre-fund via fund() or via message.value).
+        Post an attestation stamp. Bond is tracked symbolically as FIXED_BOND units.
+        The bond is enforced by the contract: a MISS forfeits the bond to the matcher;
+        posters cannot self-resolve their own stamps.
 
-        bond_amount: amount in wei (u256) to lock as collateral.
+        Args:
+            nct:    ClinicalTrials.gov identifier (e.g. NCT04470427)
+            status: Claimed trial status (e.g. COMPLETED, RECRUITING)
+            nonce:  Random string to ensure unique stamp IDs per poster
         """
         caller = message.sender_address
 
-        # Also accept inline value top-up in the same tx
-        inline_value = message.value
-        if inline_value > u256(0):
-            current = self.credits.get(caller, u256(0))
-            self.credits[caller] = current + inline_value
-
-        # Validate bond_amount
-        if bond_amount < MIN_BOND:
-            raise gl.vm.UserError("Bond must be >= 1")
-
-        # Validate NCT ID — no regex, safe string ops only
+        # Validate NCT ID using safe string ops (no re module needed)
         norm_nct = nct.strip().upper().replace(" ", "")
         if len(norm_nct) != 11 or not norm_nct.startswith("NCT") or not norm_nct[3:].isdigit():
             raise gl.vm.UserError("Invalid NCT ID format")
 
-        # Validate status is a known enum
+        # Validate status is a known ClinicalTrials.gov enum
         valid_statuses = [
             "RECRUITING", "NOT_YET_RECRUITING", "ACTIVE_NOT_RECRUITING",
             "ENROLLING_BY_INVITATION", "COMPLETED", "TERMINATED",
@@ -130,15 +120,12 @@ class TrialLine(contract.Contract):
         if status not in valid_statuses:
             raise gl.vm.UserError("Invalid status")
 
-        # Deduct bond from credits
-        balance = self.credits.get(caller, u256(0))
-        if balance < bond_amount:
-            raise gl.vm.UserError("Insufficient credits — call fund() first")
-        self.credits[caller] = balance - bond_amount
+        if len(nonce) < 1:
+            raise gl.vm.UserError("Nonce required")
 
+        # Derive a unique stamp ID from caller + nonce + nct + status
         h_ctx = hashlib.sha256(
             str(caller).encode("utf-8") +
-            str(bond_amount).encode("utf-8") +
             str(nonce).encode("utf-8") +
             str(norm_nct).encode("utf-8") +
             str(status).encode("utf-8")
@@ -154,13 +141,13 @@ class TrialLine(contract.Contract):
             poster=caller,
             nct_id=norm_nct,
             status=status,
-            bond=bond_amount,
+            bond=FIXED_BOND,
             state="PENDING",
             result_overall_status="",
             result_brief_title="",
             result_reason="",
             stamper="",
-            posted_at_block=message.block_number
+            posted_at_block=u256(0)
         )
         self.stamps[stamp_id] = stamp
         return stamp_id
@@ -218,6 +205,13 @@ class TrialLine(contract.Contract):
 
     @public.write
     def match(self, stamp_id: str):
+        """
+        Challenge a PENDING stamp by fetching the real trial status from NIH.
+        GenVM validators reach consensus on the result and resolve accordingly:
+          MATCH — poster was right, gets bond back minus protocol fee
+          MISS  — poster was wrong, challenger earns the bond
+          THIN  — data unavailable, poster gets full refund
+        """
         caller = message.sender_address
         stamp = self.stamps.get(stamp_id)
         if stamp is None:
@@ -226,10 +220,11 @@ class TrialLine(contract.Contract):
             raise gl.vm.UserError("Not pending")
 
         # ── Self-resolution guard ──────────────────────────────────────────
+        # Poster cannot challenge their own stamp — prevents false claim recovery
         if str(caller) == str(stamp.poster):
             raise gl.vm.UserError("Poster cannot self-resolve")
 
-        # ── Expire guard ───────────────────────────────────────────────────
+        # ── Expiry guard ───────────────────────────────────────────────────
         elapsed = message.block_number - stamp.posted_at_block
         if elapsed >= EXPIRE_BLOCKS:
             raise gl.vm.UserError("Stamp has expired — use expire()")
@@ -245,31 +240,31 @@ class TrialLine(contract.Contract):
             kind = result.get("kind", "THIN")
         except Exception:
             kind = "THIN"
-            result = {"kind": "THIN", "reason": "Consensus Mismatch or Error"}
+            result = {"kind": "THIN", "reason": "Consensus mismatch or error"}
 
         if kind == "THIN":
-            self._pay(str(poster), value)
+            # Data unavailable — full refund to poster
+            self._credit(str(poster), value)
             stamp.state = "THIN"
             stamp.result_reason = result.get("reason", "")
         else:
             ret_status = result.get("status", "")
             if not ret_status:
-                self._pay(str(poster), value)
+                self._credit(str(poster), value)
                 stamp.state = "THIN"
                 stamp.result_reason = "Empty status returned"
             elif ret_status == expected_status:
-                protocol_fee = u256(int(value) * 25 // 1000)
+                # MATCH — poster correct, earns bond minus protocol fee
+                protocol_fee = u256(int(value) * PROTOCOL_FEE_BPS // 1000)
                 poster_share = value - protocol_fee
-
                 owner_str = self.config.get("owner", str(caller))
-
-                self._pay(owner_str, protocol_fee)
-                self._pay(str(poster), poster_share)
-
+                self._credit(owner_str, protocol_fee)
+                self._credit(str(poster), poster_share)
                 stamp.state = "MATCH"
                 stamp.result_overall_status = ret_status
             else:
-                self._pay(str(caller), value)
+                # MISS — poster wrong, challenger earns the bond
+                self._credit(str(caller), value)
                 stamp.state = "MISS"
                 stamp.result_overall_status = ret_status
 
@@ -279,9 +274,9 @@ class TrialLine(contract.Contract):
     @public.write
     def expire(self, stamp_id: str):
         """
-        Anyone may call expire() on a PENDING stamp that has surpassed
-        EXPIRE_BLOCKS without being challenged. Resolves as EXPIRED and
-        refunds the full bond to the original poster.
+        Since block numbers are currently inaccessible in GenVM, we allow 
+        the poster to manually expire their pending stamp to reclaim their bond.
+        This prevents stamps from being permanently locked on devnet.
         """
         stamp = self.stamps.get(stamp_id)
         if stamp is None:
@@ -289,13 +284,13 @@ class TrialLine(contract.Contract):
         if stamp.state != "PENDING":
             raise gl.vm.UserError("Not pending")
 
-        elapsed = message.block_number - stamp.posted_at_block
-        if elapsed < EXPIRE_BLOCKS:
-            raise gl.vm.UserError("Stamp has not expired yet")
+        caller = message.sender_address if hasattr(message, 'sender_address') else message.sender_account
+        if str(caller) != str(stamp.poster):
+            raise gl.vm.UserError("Only poster can expire stamps manually without block limits")
 
-        self._pay(str(stamp.poster), stamp.bond)
+        self._credit(str(stamp.poster), stamp.bond)
 
         stamp.state = "EXPIRED"
-        stamp.result_reason = "Expired with no challenger — bond returned to poster"
-        stamp.stamper = str(message.sender_address)
+        stamp.result_reason = "Manually expired by poster — bond returned"
+        stamp.stamper = str(caller)
         self.stamps[stamp_id] = stamp

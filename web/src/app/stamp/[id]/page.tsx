@@ -12,7 +12,7 @@ export default function Page() {
   const [isStamping, setIsStamping] = useState(false);
   const [isExpiring, setIsExpiring] = useState(false);
   const { kit, address } = useGenLayer();
-  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x69d4772358b24de4B2570B133257e3d0e88522aC";
+  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xC722dA37687955dB6aDDb18bABAA6e092C92e0FF";
 
   interface Stamp {
     id: string;
@@ -75,7 +75,7 @@ export default function Page() {
     );
   }
 
-  const bondValue = (Number(stamp.value) / 1e18).toFixed(2);
+  const bondValue = Number(stamp.value).toFixed(2);
 
   return (
     <>
@@ -162,12 +162,8 @@ export default function Page() {
                   {stamp.status === "PENDING" && (
                     <div className="flex gap-4 mt-2">
                       <div className="bg-surface-container px-3 py-1.5 rounded-DEFAULT">
-                        <span className="text-[10px] text-outline uppercase block">Posted at Block</span>
-                        <span className="text-label-sm font-semibold">{stamp.posted_at_block}</span>
-                      </div>
-                      <div className="bg-surface-container px-3 py-1.5 rounded-DEFAULT">
-                        <span className="text-[10px] text-outline uppercase block">Expires at Block</span>
-                        <span className="text-label-sm font-semibold">{stamp.expire_at_block}</span>
+                        <span className="text-[10px] text-outline uppercase block">Expiration</span>
+                        <span className="text-label-sm font-semibold">Manual (Poster Only)</span>
                       </div>
                     </div>
                   )}
@@ -185,7 +181,7 @@ export default function Page() {
                         </span>
                       </div>
                       <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-                        Open for challengers. If unchallenged after 200 blocks, it can be expired.
+                        Open for challengers. The original poster may manually expire this stamp to claim a full refund if unchallenged.
                       </p>
                     </div>
                     <div className="flex items-center gap-2.5 shrink-0">
@@ -343,7 +339,7 @@ export default function Page() {
                       </span>
                     </div>
                     <p className="font-body-sm text-[12px] text-on-surface-variant mt-1 leading-tight">
-                      Unchallenged stamps after 200 blocks result in a 100% refund.
+                      Unchallenged stamps can be manually expired by the poster for a 100% refund.
                     </p>
                   </div>
                 </div>

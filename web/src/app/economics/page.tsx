@@ -10,7 +10,7 @@ export default function Page() {
     credits_outstanding: "0"
   });
   const [loading, setLoading] = useState(true);
-  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x69d4772358b24de4B2570B133257e3d0e88522aC";
+  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xC722dA37687955dB6aDDb18bABAA6e092C92e0FF";
 
   useEffect(() => {
     async function fetchEconomics() {
@@ -40,7 +40,7 @@ export default function Page() {
   }, [contractAddress]);
 
   const formatGen = (weiString: string) => {
-    return (Number(weiString) / 1e18).toFixed(4);
+    return Number(weiString).toFixed(2);
   };
 
   return (

@@ -23,7 +23,7 @@ TrialLine lets anyone stake GEN tokens on the real-world status of an NIH clinic
 ## How It Works
 
 1. **Post a Stamp** — A user locks GEN tokens and claims a specific NCT trial has a specific status (e.g. `COMPLETED`).
-2. **Challenge Window Opens** — For the next ~200 blocks, any third party can call `match()` to challenge the claim.
+2. **Challenge Window Opens** — Any third party can call `match()` to challenge the claim.
 3. **GenVM Resolves** — The GenLayer validator network autonomously queries `clinicaltrials.gov/api/v2/studies/{NCT_ID}`, reaches strict consensus on the result, and settles the bond instantly.
 4. **Funds Settle** — If the claim was correct → poster earns back their stake minus a 2.5% protocol fee. If wrong → challenger wins the full bond.
 
@@ -36,7 +36,7 @@ Every stamp has an **immutable block-based lifecycle** stored in `posted_at_bloc
 ```
 Block 0–9    │ LOCK WINDOW    │ Cancel forbidden — bond fully at risk
 Block 10–199 │ CHALLENGE WIN. │ Third party can match(); poster can cancel (full refund)
-Block 200+   │ EXPIRED        │ Anyone calls expire() → 100% refund to poster
+Expired      │ EXPIRED        │ Poster calls expire() manually → 100% refund to poster
 ```
 
 This makes the bond genuinely enforceable and prevents posters from escaping a challenge.
@@ -51,7 +51,7 @@ This makes the bond genuinely enforceable and prevents posters from escaping a c
 | **MISS** | NIH returns a different status | 100% → Challenger (Stamper) |
 | **THIN** | 404 / 5xx / malformed JSON / missing key | 100% → Poster (full refund) |
 | **CANCELED** | Poster cancels during challenge window | 100% → Poster (full refund) |
-| **EXPIRED** | No challenger within 200 blocks | 100% → Poster (full refund) |
+| **EXPIRED** | Manually expired by poster | 100% → Poster (full refund) |
 
 ---
 
@@ -67,7 +67,7 @@ TrialLine is hardened against every known GenVM rejection class:
 | **Fail-Closed** | Missing `overallStatus`, 404, 5xx, malformed JSON → instant `THIN` (full refund). No silent failures |
 | **CEI-Compliant Withdrawals** | `withdraw()` zeroes the balance *before* calling `emit_transfer()` — reentrancy safe |
 | **No Self-Resolution** | Poster is **blocked from calling `match()`** on their own stamp — cannot manipulate their own outcome |
-| **Enforceable Bond Window** | 10-block lock prevents cancel-to-escape; 200-block expire prevents permanent lock |
+| **Enforceable Bond Window** | 10-block lock prevents cancel-to-escape; Poster can expire if no challenger arrives |
 
 ---
 
@@ -78,7 +78,7 @@ TrialLine is hardened against every known GenVM rejection class:
 | `post_stamp(nct, status, nonce)` | `public.write.payable` | Lock GEN and post a claim |
 | `match(stamp_id)` | `public.write` | Challenge a pending stamp (triggers GenVM consensus) |
 | `cancel(stamp_id)` | `public.write` | Poster cancels during challenge window (blocks 10–199) |
-| `expire(stamp_id)` | `public.write` | Anyone expires an unchallenged stamp after block 200 |
+| `expire(stamp_id)` | `public.write` | Poster can manually expire an unchallenged stamp |
 | `withdraw()` | `public.write` | Withdraw fallback credits to wallet |
 | `get_stamp(stamp_id)` | `public.view` | Read full stamp record |
 | `list_ids()` | `public.view` | List all stamp IDs |
@@ -104,7 +104,7 @@ pytest tests/direct/test_trialline.py -v
 | Authorization | Unauthorized cancel, self-resolution blocked |
 | Fund security | Withdrawal success, no-funds error, credits fallback |
 | Resolution window | Cancel during lockup fails, cancel after lockup succeeds |
-| Expiry | `expire()` succeeds after block 200, fails before |
+| Expiry | `expire()` succeeds when called by poster on PENDING stamp |
 
 ### Live Test Fixtures
 

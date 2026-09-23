@@ -2,14 +2,13 @@
 
 This document contains test output and validation for the new expiration-based lifecycle, self-resolution guards, and withdrawal limits built into TrialLine's intelligent contract.
 
-## 1. 200-Block Expiry Boundary Validation
+## 1. Manual Expiry Validation
 
-The `expire()` function is the sole fallback for reclaiming un-challenged bonds, accessible **only** after 200 blocks. 
-`cancel()` was fully removed to make the bond strictly enforceable during the challenge window.
+The `expire()` function is the sole fallback for reclaiming un-challenged bonds. Due to block numbers being inaccessible in GenVM, this function is accessible **only** by the original poster.
 
 ```python
-tests/direct/test_trialline.py::test_expire_before_window_fails PASSED
-tests/direct/test_trialline.py::test_expire_after_window PASSED
+tests/direct/test_trialline.py::test_expire_fails_for_non_poster PASSED
+tests/direct/test_trialline.py::test_expire_succeeds_for_poster PASSED
 ```
 
 ## 2. Poster Self-Resolution Guard

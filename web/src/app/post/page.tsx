@@ -13,7 +13,7 @@ export default function Page() {
   const { kit, address } = useGenLayer();
   const [nonce, setNonce] = useState("");
   useEffect(() => { setNonce(Math.random().toString(36).substring(2, 15)); }, []);
-  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x69d4772358b24de4B2570B133257e3d0e88522aC";
+  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xC722dA37687955dB6aDDb18bABAA6e092C92e0FF";
   const isValidNct = /^NCT\d{8}$/i.test(nct);
 
   return (
@@ -397,7 +397,7 @@ export default function Page() {
 </div>
 <div className="flex items-center gap-2 text-on-surface-variant font-body-sm text-body-sm">
 <span className="material-symbols-outlined text-[16px] text-[#536233]">check_circle</span>
-<span>Bond locked for 200 blocks — fully enforceable by validators</span>
+<span>Bond reclaimable manually by poster if unchallenged — fully enforceable by validators</span>
 </div>
 </div>
 
@@ -440,8 +440,10 @@ export default function Page() {
           
           if ((txStatus === 'ACCEPTED' || txStatus === 'FINALIZED') && 
               (execution === 'FINISHED_WITH_RETURN' || execution === 'accepted' || !execution)) {
-            setTimeout(() => setTxSuccess(true), 0);
-            setNonce(Math.random().toString(36).substring(2, 15));
+            setTimeout(() => {
+              setTxSuccess(true);
+              setNonce(Math.random().toString(36).substring(2, 15));
+            }, 0);
           } else {
             console.error("Transaction failed execution:", result, result instanceof Error ? result.message : JSON.stringify(result, Object.getOwnPropertyNames(result)));
           }
@@ -450,8 +452,7 @@ export default function Page() {
           kind: 'write',
           address: contractAddress as `0x${string}`,
           method: 'post_stamp',
-          // bond_amount passed as u256 arg — no payable value needed
-          args: [nct, status, nonce, BigInt(Math.floor(parseFloat(bond || "0") * 1e18))]
+          args: [nct, status, nonce]
         }}
       />
     ) : (

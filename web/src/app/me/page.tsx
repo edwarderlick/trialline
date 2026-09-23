@@ -12,7 +12,7 @@ export default function Page() {
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [txSuccess, setTxSuccess] = useState(false);
   
-  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x69d4772358b24de4B2570B133257e3d0e88522aC";
+  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xC722dA37687955dB6aDDb18bABAA6e092C92e0FF";
 
   useEffect(() => {
     async function fetchCredit() {
@@ -51,7 +51,7 @@ export default function Page() {
 
   const formatGen = (weiString: string | null) => {
     if (!weiString) return "0.0000";
-    return (Number(weiString) / 1e18).toFixed(4);
+    return Number(weiString).toFixed(2);
   };
 
   const hasCredit = creditBalance && Number(creditBalance) > 0;

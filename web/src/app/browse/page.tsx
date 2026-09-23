@@ -4,7 +4,7 @@ import Link from "next/link";
 import { createClient } from "genlayer-js";
 import { studioDevnet } from "genlayer-js/chains";
 
-const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x69d4772358b24de4B2570B133257e3d0e88522aC";
+const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xC722dA37687955dB6aDDb18bABAA6e092C92e0FF";
 
 interface StampRecord {
   id: string;
@@ -102,7 +102,7 @@ export default function Page() {
 <div className="flex flex-col justify-between px-4 py-2.5 bg-surface-container-lowest rounded-DEFAULT min-w-[170px] shadow-sm">
 <span className="font-label-sm text-label-sm uppercase text-outline">Escrow Liquidity</span>
 <div className="flex items-baseline gap-1.5 mt-1">
-<span className="font-headline-md text-headline-md text-secondary font-medium leading-none">{stamps.reduce((acc, s) => acc + (Number(s.value) > 1000 ? Number(s.value)/1e18 : Number(s.value)), 0).toFixed(2)}</span>
+<span className="font-headline-md text-headline-md text-secondary font-medium leading-none">{stamps.reduce((acc, s) => acc + Number(s.value), 0).toFixed(2)}</span>
 <span className="font-label-sm text-label-sm text-on-surface-variant">test GEN</span>
 </div>
 </div>
@@ -229,7 +229,7 @@ export default function Page() {
           <span className={`px-2 py-0.5 rounded-DEFAULT ${stateColorClass} font-label-sm text-label-sm font-semibold tracking-wider`}>{stateLabel}</span>
         </td>
         <td className="py-3.5 px-4 text-right font-label-md text-label-md text-secondary font-semibold">
-          {Number(stamp.value) > 1000 ? (Number(stamp.value)/1e18).toFixed(2) : stamp.value} <span className="text-on-surface-variant font-normal text-[10px]">GEN</span>
+          {Number(stamp.value).toFixed(2)} <span className="text-on-surface-variant font-normal text-[10px]">GEN</span>
         </td>
         <td className="py-3.5 px-4 text-right">
           <Link href={`/stamp/${stamp.id}`}>
