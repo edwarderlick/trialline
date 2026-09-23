@@ -432,17 +432,16 @@ export default function Page() {
         kit={kit}
         network="GenLayer Studio Next"
         theme="light"
-        userValue={BigInt(Math.floor(parseFloat(bond || "0") * 1e18))}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onDone={(result: any) => {
           console.log("Done!", result);
-          const status = result?.statusName || result?.status;
+          const txStatus = result?.statusName || result?.status;
           const execution = result?.executionResultName || result?.executionResult || result?.execution?.result || result?.lifecycle?.outcome;
           
-          if ((status === 'ACCEPTED' || status === 'FINALIZED') && 
+          if ((txStatus === 'ACCEPTED' || txStatus === 'FINALIZED') && 
               (execution === 'FINISHED_WITH_RETURN' || execution === 'accepted' || !execution)) {
             setTimeout(() => setTxSuccess(true), 0);
-            setNonce(Math.random().toString(36).substring(2, 15)); // Reset nonce for next potential stamp
+            setNonce(Math.random().toString(36).substring(2, 15));
           } else {
             console.error("Transaction failed execution:", result, result instanceof Error ? result.message : JSON.stringify(result, Object.getOwnPropertyNames(result)));
           }
@@ -451,7 +450,8 @@ export default function Page() {
           kind: 'write',
           address: contractAddress as `0x${string}`,
           method: 'post_stamp',
-          args: [nct, status, nonce]
+          // bond_amount passed as u256 arg — no payable value needed
+          args: [nct, status, nonce, BigInt(Math.floor(parseFloat(bond || "0") * 1e18))]
         }}
       />
     ) : (
